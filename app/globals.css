@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-background text-text-body font-sans;
+  }
+
+  h1 {
+    @apply text-text-primary font-bold;
+    font-size: clamp(32px, 5vw, 48px);
+    line-height: 1.2;
+  }
+
+  h2 {
+    @apply text-text-primary font-semibold;
+    font-size: clamp(24px, 4vw, 32px);
+  }
+
+  h3 {
+    @apply text-text-primary font-medium;
+    font-size: 20px;
+  }
+
+  p {
+    @apply text-text-body;
+    font-size: 16px;
+  }
+
+  .text-small {
+    @apply text-text-muted;
+    font-size: 14px;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-accent hover:bg-accent-hover text-white font-medium py-2.5 px-5 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 shadow-sm;
+  }
+
+  .btn-secondary {
+    @apply border border-card-border bg-white hover:bg-secondary-bg text-text-body font-medium py-2.5 px-5 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 shadow-sm;
+  }
+
+  .card {
+    @apply bg-card-bg border border-card-border rounded-xl p-4 md:p-6 shadow-sm;
+  }
+
+  .section-container {
+    @apply max-w-[1200px] mx-auto px-4 md:px-6 py-12 md:py-16;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-secondary-bg rounded-full;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-card-border rounded-full;
+  }
+}
