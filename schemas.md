@@ -94,8 +94,18 @@ Clients/sites to monitor. Matches `Client` in `lib/types.ts`. Add-client form: w
 | `hosting_provider`| `text`        | YES      | e.g. AWS, Vercel                     |
 | `git_repo_url`    | `text`        | YES      | Git repository URL                   |
 | `logo_url`        | `text`        | YES      | Client logo image URL                |
+| `slug`            | `text`        | YES      | Unique URL slug (e.g. `acme-corp`) for public form URL `/{slug}/form` |
 | `created_at`      | `timestamptz` | NO       | Default `now()`                      |
 | `updated_at`      | `timestamptz` | NO       | Default `now()`                      |
+
+**Add slug column (if table already exists):** Run in Supabase SQL Editor:
+
+```sql
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS slug text UNIQUE;
+CREATE UNIQUE INDEX IF NOT EXISTS clients_slug_key ON public.clients(slug) WHERE slug IS NOT NULL;
+```
+
+New clients get a slug generated from the name when created via the app. Backfill existing rows if needed.
 
 Derived (computed or from other tables) for UI: `uptime`, `ssl_expiry`, `open_tasks`, `last_backup` – can stay as app-level aggregates or be added as cached columns later.
 
@@ -118,37 +128,45 @@ CREATE TABLE public.clients (
 
 ### 2.4 `public.tasks`
 
-Tasks per client (Kanban, AI Task Engine). Matches `Task` in `lib/types.ts`.
+Tasks per client. Used by the public Task Intake form (`/{slug}/form`) and by the admin Kanban. Each row is linked to a client via `client_id`.
 
 | Column        | Type          | Nullable | Description                    |
 |---------------|---------------|----------|--------------------------------|
 | `id`          | `uuid`        | NO       | PK, default `gen_random_uuid()`|
-| `client_id`   | `uuid`        | NO       | FK → `public.clients(id)`       |
+| `client_id`   | `uuid`        | NO       | FK → `public.clients(id)`      |
 | `title`       | `text`        | NO       | Task title                     |
-| `priority`    | `task_priority`| NO      | Low, Medium, High, Critical    |
-| `status`      | `task_status` | NO       | Backlog, In Progress, Review, Completed |
+| `priority`    | `text`        | NO       | From form: low, medium, high, urgent |
+| `task_type`   | `text`        | NO       | From form: bug, feature, improvement, support |
+| `description` | `text`        | YES      | Detailed description          |
+| `status`      | `text`        | NO       | Backlog, In Progress, Review, Completed (default Backlog) |
 | `assigned_to` | `uuid`        | YES      | FK → `public.users(id)`        |
-| `type`        | `task_type`   | NO       | AI Generated, Manual           |
-| `created_at`  | `timestamptz` | NO       | Default `now()`                 |
-| `updated_at`  | `timestamptz` | NO       | Default `now()`                 |
+| `source`      | `text`        | YES      | e.g. `public_form`, `manual`   |
+| `created_at`  | `timestamptz` | NO       | Default `now()`                |
+| `updated_at`  | `timestamptz` | NO       | Default `now()`                |
+
+**Create table (run in Supabase SQL Editor):**
 
 ```sql
-CREATE TABLE public.tasks (
+CREATE TABLE IF NOT EXISTS public.tasks (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id   uuid NOT NULL REFERENCES public.clients(id) ON DELETE CASCADE,
   title       text NOT NULL,
-  priority    task_priority NOT NULL,
-  status      task_status NOT NULL,
+  priority    text NOT NULL,
+  task_type   text NOT NULL,
+  description text,
+  status      text NOT NULL DEFAULT 'Backlog',
   assigned_to uuid REFERENCES public.users(id) ON DELETE SET NULL,
-  type        task_type NOT NULL DEFAULT 'Manual',
+  source      text,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_tasks_client_id ON public.tasks(client_id);
-CREATE INDEX idx_tasks_status ON public.tasks(status);
-CREATE INDEX idx_tasks_assigned_to ON public.tasks(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_tasks_client_id ON public.tasks(client_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_status ON public.tasks(status);
+CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to ON public.tasks(assigned_to);
 ```
+
+Enable RLS and allow authenticated users to read/write (and allow the API to insert from the public form via service role). Public form submissions should set `source = 'public_form'`.
 
 ---
 

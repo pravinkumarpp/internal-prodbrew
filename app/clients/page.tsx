@@ -19,6 +19,7 @@ type ClientRow = {
   uptime_pct_24h: number | null;
   ssl_expiry_date: string | null;
   ssl_last_checked_at: string | null;
+  tasks_count?: number;
 };
 
 const PLATFORM_OPTIONS = ['All', 'WordPress', 'Shopify', 'Next.js'] as const;
@@ -249,7 +250,7 @@ export default function ClientsListPage() {
                     </td>
                     <td className="px-6 py-4">
                       <span className="px-2 py-1 rounded-full bg-accent/10 text-accent text-xs font-bold">
-                        0
+                        {client.tasks_count ?? 0}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>

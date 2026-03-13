@@ -54,13 +54,16 @@ export default function AddClientPage() {
           logo_url: finalLogoUrl,
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => ({}))) as { error?: string; slug?: string };
       if (!res.ok) {
-        toast.error((data as { error?: string }).error || 'Failed to add client.');
+        toast.error(data.error || 'Failed to add client.');
         setSubmitting(false);
         return;
       }
-      toast.success('Client added successfully.');
+      const formUrl = data.slug
+        ? `${typeof window !== 'undefined' ? window.location.origin : ''}/${data.slug}/form`
+        : '';
+      toast.success(formUrl ? `Client added. Form URL: ${formUrl}` : 'Client added successfully.');
       router.push('/clients');
       router.refresh();
     } catch {
