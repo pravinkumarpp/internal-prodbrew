@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useParams, useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
 import {
   LayoutDashboard,
   Users,
@@ -69,6 +70,16 @@ interface AppLayoutProps {
   title: string;
 }
 
+function getInitials(fullName: string | null | undefined, email: string | undefined): string {
+  if (fullName && fullName.trim()) {
+    const parts = fullName.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  if (email) return email.slice(0, 2).toUpperCase();
+  return '?';
+}
+
 export function AppLayout({ children, title }: AppLayoutProps) {
   const pathname = usePathname();
   const params = useParams();
@@ -76,9 +87,22 @@ export function AppLayout({ children, title }: AppLayoutProps) {
   const clientId = params?.clientId as string | undefined;
   const [collapsed, setCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [profile, setProfile] = useState<{ fullName: string | null; email: string } | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const fullName = (user.user_metadata?.full_name as string) || null;
+        setProfile({ fullName, email: user.email ?? '' });
+      }
+    });
+  }, []);
 
   const isClientView = pathname?.includes('/client/');
   const clientNav = clientId ? getClientNav(clientId) : [];
+  const displayName = profile?.fullName?.trim() || profile?.email || null;
+  const initials = getInitials(profile?.fullName ?? null, profile?.email);
 
   return (
     <div className="flex min-h-screen bg-background text-text-body">
@@ -148,7 +172,12 @@ export function AppLayout({ children, title }: AppLayoutProps) {
         <div className="p-4 border-t border-card-border">
           <button
             type="button"
-            onClick={() => router.push('/login')}
+            onClick={async () => {
+              const supabase = createClient();
+              await supabase.auth.signOut();
+              router.push('/login');
+              router.refresh();
+            }}
             className="flex items-center gap-3 px-4 py-3 w-full text-text-muted hover:text-red-500 transition-colors"
           >
             <LogOut size={20} />
@@ -179,8 +208,11 @@ export function AppLayout({ children, title }: AppLayoutProps) {
                 className="bg-background border border-card-border rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-accent w-32 md:w-64"
               />
             </div>
-            <div className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent font-bold">
-              JD
+            <div
+              className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent font-bold text-sm"
+              title={displayName ?? undefined}
+            >
+              {initials}
             </div>
           </div>
         </header>

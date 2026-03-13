@@ -1,11 +1,40 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Zap } from 'lucide-react';
+import { Zap, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
+import { toast } from 'sonner';
+import { createClient } from '@/lib/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setLoading(true);
+
+    const supabase = createClient();
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    setLoading(false);
+
+    if (signInError) {
+      toast.error(signInError.message);
+      return;
+    }
+
+    toast.success('Signed in successfully');
+    router.push('/');
+    router.refresh();
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
@@ -22,33 +51,47 @@ export default function LoginPage() {
           <p className="text-text-muted">Enter your credentials to access the platform</p>
         </div>
 
-        <form
-          className="space-y-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            router.push('/');
-          }}
-        >
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div>
             <label className="block text-sm font-medium mb-2">Email Address</label>
             <input
               type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full bg-background border border-card-border rounded-lg px-4 py-3 focus:outline-none focus:border-accent"
               placeholder="admin@maintainai.com"
               required
+              autoComplete="email"
             />
           </div>
           <div>
             <label className="block text-sm font-medium mb-2">Password</label>
-            <input
-              type="password"
-              className="w-full bg-background border border-card-border rounded-lg px-4 py-3 focus:outline-none focus:border-accent"
-              placeholder="••••••••"
-              required
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-background border border-card-border rounded-lg px-4 py-3 pr-12 focus:outline-none focus:border-accent"
+                placeholder="••••••••"
+                required
+                autoComplete="current-password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-body transition-colors"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
-          <button type="submit" className="w-full btn-primary">
-            Sign In
+          <button
+            type="submit"
+            className="w-full btn-primary disabled:opacity-50 disabled:pointer-events-none"
+            disabled={loading}
+          >
+            {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
       </motion.div>
