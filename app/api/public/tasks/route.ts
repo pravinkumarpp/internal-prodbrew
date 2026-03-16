@@ -40,7 +40,7 @@ export async function POST(request: Request) {
 
   const { data: client, error: clientError } = await supabaseAdmin
     .from("clients")
-    .select("id")
+    .select("id, name")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -115,6 +115,55 @@ export async function POST(request: Request) {
       { error: insertError.message },
       { status: 500 },
     );
+  }
+
+  // Create Fizzy card if credentials are set
+  const fizzyToken = process.env.FIZZY_ACCESS_TOKEN;
+  const accountId = process.env.FIZZY_ACCOUNT_ID;
+  const boardId = process.env.FIZZY_BOARD_ID;
+
+  if (fizzyToken && accountId && boardId) {
+    const clientName = (client as { id: string; name?: string }).name ?? "Unknown";
+    const cardDescription = [
+      description,
+      "",
+      `Priority: ${priority} | Type: ${taskType}`,
+      `Client: ${clientName}`,
+      attachments.length > 0
+        ? `\nAttachments (${attachments.length}): ${attachments.map((a) => a.url).join(", ")}`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n");
+
+    try {
+      const fizzyRes = await fetch(
+        `https://app.fizzy.do/${accountId}/boards/${boardId}/cards`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${fizzyToken}`,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            card: {
+              title,
+              description: cardDescription,
+            },
+          }),
+        },
+      );
+      if (!fizzyRes.ok) {
+        console.error(
+          "Fizzy card creation failed:",
+          fizzyRes.status,
+          await fizzyRes.text(),
+        );
+      }
+    } catch (err) {
+      console.error("Fizzy API error:", err);
+    }
   }
 
   return NextResponse.json({ success: true, id: task.id }, { status: 201 });

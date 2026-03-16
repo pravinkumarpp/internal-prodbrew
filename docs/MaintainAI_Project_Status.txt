@@ -1,0 +1,61 @@
+MAINTAINAI — PROJECT STATUS & REMAINING WORK
+============================================
+Document for organization / board: completed work and pending functionality.
+(You can copy this into your message board, email, or internal wiki.)
+
+----------------------------------------
+1. COMPLETED (Backend, UI & Functionality)
+----------------------------------------
+
+• Authentication & access
+  Login (admin), session handling, secure cookies, redirects. No signup; invite-only team members.
+  Done with UI and functionality.
+
+• Team management
+  Team list from database, invite members (email + role), resend invite for unconfirmed users, accept-invite flow with set-password page, sync to public.users.
+  Done with UI and functionality.
+
+• Settings
+  Settings page with inner sidebar (General, Monitoring, Notifications, Integrations). Billing section removed.
+  UI only; no database or backend functionality.
+
+• Clients (CRUD & list)
+  Add client (name, URL, platform, hosting, git repo, logo upload/URL), list clients with filters (Platform, Status), delete client with confirmation modal (removes DB row and logo from storage).
+  Done with UI and functionality.
+
+• Client public form URL
+  Per-client slug (e.g. /acme-corp/form). Public Task Intake form (no login): task title, priority, type, description, attachments (image/PDF/ZIP). Submit saves task to DB and uploads files to storage bucket. Form URL shown after adding a client.
+  Done with UI and functionality.
+
+• Monitoring (24/7 & SSL)
+  Cron job pings client URLs, checks SSL expiry, updates client health/uptime/SSL fields in DB. Clients list and dashboard show real health, uptime %, SSL expiry. Vercel Cron configured.
+  Done with UI and functionality.
+
+• Dashboard
+  Real data: total clients, system health, uptime chart, recent alerts from DB. No mock data.
+  Done with UI and functionality.
+
+• Tasks storage & display
+  Tasks table linked to client_id. Form submissions create new task rows (no update of existing). Tasks count per client fetched from DB and shown on Clients page.
+  Done with UI and functionality.
+
+• Fizzy Boards integration
+  On task form submit, a card is created on the configured Fizzy board (title + description with priority, type, client, attachment links). Optional via env vars; DB save always succeeds even if Fizzy fails.
+  Done with UI and functionality.
+
+• Save Draft (Task Intake form)
+  Draft saved to localStorage (per client slug); restored on return; cleared on successful submit.
+  Done with UI and functionality.
+
+----------------------------------------
+2. REMAINING (Functionality to be done)
+----------------------------------------
+
+• Admin task management
+  From the Clients list, the action (chevron) opens that client's detail area (starts at Uptime). The client sidebar then offers multiple pages: Uptime, SSL, Server Logs, Frontend Errors, API Monitoring, Performance, Security, Backups, AI Task Engine, Tasks, Incident Timeline, Knowledge Base, Hours Tracking, Reports, AI Content, AI Programming, Kanban. The Tasks and Kanban pages exist in the UI but currently use mock data. Remaining: wire them to the tasks table (fetch by client_id), and add update status / assign to team members.
+
+• Hours tracked
+  Source and display real "Hours Tracked" data (e.g. from time-tracking or external tool). Currently placeholder. Functionality not yet implemented.
+
+============================================
+End of document.

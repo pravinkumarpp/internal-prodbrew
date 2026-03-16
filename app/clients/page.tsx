@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { PlusCircle, Filter, ChevronRight, Globe2, ChevronDown, Trash2, X } from 'lucide-react';
+import { PlusCircle, Filter, ChevronRight, Globe2, ChevronDown, Trash2, X, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/layout';
@@ -14,6 +14,7 @@ type ClientRow = {
   platform: string;
   status: string | null;
   logo_url: string | null;
+  slug: string | null;
   last_check_at: string | null;
   last_status: string | null;
   uptime_pct_24h: number | null;
@@ -54,6 +55,18 @@ export default function ClientsListPage() {
 
   function openDeleteModal(clientId: string, clientName: string) {
     setDeleteModal({ id: clientId, name: clientName });
+  }
+
+  function copyFormUrl(slug: string | null) {
+    if (!slug?.trim()) {
+      toast.error('No form URL for this client.');
+      return;
+    }
+    const formUrl = `${typeof window !== 'undefined' ? window.location.origin : ''}/${slug}/form`;
+    navigator.clipboard.writeText(formUrl).then(
+      () => toast.success('Form URL copied to clipboard'),
+      () => toast.error('Could not copy'),
+    );
   }
 
   async function confirmDelete() {
@@ -255,6 +268,16 @@ export default function ClientsListPage() {
                     </td>
                     <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => copyFormUrl(client.slug ?? null)}
+                          disabled={!client.slug}
+                          className="p-1.5 rounded-lg text-text-muted hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                          aria-label={`Copy form URL for ${client.name}`}
+                          title="Copy form URL"
+                        >
+                          <Copy size={18} />
+                        </button>
                         <button
                           type="button"
                           onClick={() => openDeleteModal(client.id, client.name)}

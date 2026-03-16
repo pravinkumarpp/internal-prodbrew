@@ -115,3 +115,25 @@ Replace `<PROJECT_REF>` with your project reference (from Project Settings → G
 | 3 | Create bucket |
 | 4 | **Policies** → add policy so authenticated (or public) can INSERT/SELECT as needed |
 | 5 | Use bucket name in app for uploads and build logo URLs for `clients.logo_url` |
+
+{
+    "id": "03fpipw66yyjj3288obhl4l",
+    "accounts": [
+        {
+            "id": "03f5ixrsn62vpki5cki6i1u",
+            "name": "Prodbrew",
+            "slug": "/6108161",
+            "created_at": "2025-12-04T05:42:35.453Z",
+            "user": {
+                "id": "03fpipw686vlxvutohakfpnzd",
+                "name": "Jayakannan M",
+                "role": "member",
+                "active": true,
+                "email_address": "jayakannan@mavencart.com",
+                "created_at": "2026-03-06T08:30:14.888Z",
+                "url": "https://app.fizzy.do/users/03fpipw686vlxvutohakfpnzd",
+                "avatar_url": "https://app.fizzy.do/users/03fpipw686vlxvutohakfpnzd/avatar"
+            }
+        }
+    ]
+}

@@ -1,10 +1,12 @@
-'use client';
+"use client";
 
-import { useEffect, useState, useRef } from 'react';
-import { useParams } from 'next/navigation';
-import Link from 'next/link';
-import { Zap, Shield, CloudUpload, User } from 'lucide-react';
-import { toast } from 'sonner';
+import { useEffect, useState, useRef } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
+import { Zap, Shield, CloudUpload, User } from "lucide-react";
+import { toast } from "sonner";
+
+const DRAFT_KEY_PREFIX = "maintainai-task-draft-";
 
 type Client = {
   id: string;
@@ -13,17 +15,24 @@ type Client = {
   logo_url: string | null;
 };
 
+type Draft = {
+  title: string;
+  priority: string;
+  taskType: string;
+  description: string;
+};
+
 export default function ClientFormPage() {
   const params = useParams();
-  const slug = typeof params?.slug === 'string' ? params.slug : '';
+  const slug = typeof params?.slug === "string" ? params.slug : "";
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
-  const [taskTitle, setTaskTitle] = useState('');
-  const [priority, setPriority] = useState('');
-  const [taskType, setTaskType] = useState('');
-  const [description, setDescription] = useState('');
+  const [taskTitle, setTaskTitle] = useState("");
+  const [priority, setPriority] = useState("");
+  const [taskType, setTaskType] = useState("");
+  const [description, setDescription] = useState("");
   const [fileCount, setFileCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -36,7 +45,7 @@ export default function ClientFormPage() {
     let cancelled = false;
     fetch(`/api/public/client/${encodeURIComponent(slug)}`)
       .then((res) => {
-        if (!res.ok) throw new Error('Not found');
+        if (!res.ok) throw new Error("Not found");
         return res.json();
       })
       .then((data) => {
@@ -48,8 +57,29 @@ export default function ClientFormPage() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
+
+  useEffect(() => {
+    if (!client || !slug || typeof window === "undefined") return;
+    const key = `${DRAFT_KEY_PREFIX}${slug}`;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return;
+      const d = JSON.parse(raw) as Draft | null;
+      if (d && typeof d === "object") {
+        if (d.title != null) setTaskTitle(String(d.title));
+        if (d.priority != null) setPriority(String(d.priority));
+        if (d.taskType != null) setTaskType(String(d.taskType));
+        if (d.description != null) setDescription(String(d.description));
+        toast.info("Draft restored");
+      }
+    } catch {
+      // ignore invalid draft
+    }
+  }, [client, slug]);
 
   if (loading) {
     return (
@@ -63,7 +93,9 @@ export default function ClientFormPage() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 max-w-md w-full p-6 text-center">
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Client not found</h2>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">
+            Client not found
+          </h2>
           <p className="text-gray-500 mb-4">
             This form link may be incorrect or the client may have been removed.
           </p>
@@ -75,49 +107,76 @@ export default function ClientFormPage() {
     );
   }
 
+  function handleSaveDraft() {
+    const key = `${DRAFT_KEY_PREFIX}${slug}`;
+    try {
+      localStorage.setItem(
+        key,
+        JSON.stringify({
+          title: taskTitle,
+          priority,
+          taskType,
+          description,
+        } satisfies Draft),
+      );
+      toast.success("Draft saved. You can return later to submit.");
+    } catch {
+      toast.error("Could not save draft");
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!taskTitle.trim() || !priority || !taskType || !description.trim()) {
-      toast.error('Please fill in all required fields.');
+      toast.error("Please fill in all required fields.");
       return;
     }
 
     setSubmitting(true);
     try {
       const formData = new FormData();
-      formData.append('slug', slug);
-      formData.append('title', taskTitle.trim());
-      formData.append('priority', priority);
-      formData.append('task_type', taskType);
-      formData.append('description', description.trim());
+      formData.append("slug", slug);
+      formData.append("title", taskTitle.trim());
+      formData.append("priority", priority);
+      formData.append("task_type", taskType);
+      formData.append("description", description.trim());
 
       if (fileInputRef.current?.files?.length) {
         Array.from(fileInputRef.current.files).forEach((file) => {
-          formData.append('attachments', file);
+          formData.append("attachments", file);
         });
       }
 
-      const res = await fetch('/api/public/tasks', {
-        method: 'POST',
+      const res = await fetch("/api/public/tasks", {
+        method: "POST",
         body: formData,
       });
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error((data as { error?: string }).error || 'Failed to submit task.');
+        toast.error(
+          (data as { error?: string }).error || "Failed to submit task.",
+        );
         setSubmitting(false);
         return;
       }
 
-      toast.success('Task submitted successfully! Our engineers will review it shortly.');
-      setTaskTitle('');
-      setPriority('');
-      setTaskType('');
-      setDescription('');
+      try {
+        localStorage.removeItem(`${DRAFT_KEY_PREFIX}${slug}`);
+      } catch {
+        // ignore
+      }
+      toast.success(
+        "Task submitted successfully! Our engineers will review it shortly.",
+      );
+      setTaskTitle("");
+      setPriority("");
+      setTaskType("");
+      setDescription("");
       setFileCount(0);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = "";
     } catch {
-      toast.error('Something went wrong.');
+      toast.error("Something went wrong.");
     } finally {
       setSubmitting(false);
     }
@@ -144,7 +203,9 @@ export default function ClientFormPage() {
             <div className="w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center">
               <Zap className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold tracking-tight text-slate-900">MaintainAI</span>
+            <span className="text-xl font-bold tracking-tight text-slate-900">
+              MaintainAI
+            </span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <div className="w-10 h-10 rounded-full border border-gray-200 bg-gray-100 flex items-center justify-center text-gray-500">
@@ -181,15 +242,21 @@ export default function ClientFormPage() {
 
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <div className="brand-accent-bg border-b border-gray-100 px-6 sm:px-8 py-6">
-              <h2 className="text-lg font-semibold text-slate-800">Task Specification</h2>
+              <h2 className="text-lg font-semibold text-slate-800">
+                Task Specification
+              </h2>
               <p className="text-sm text-slate-600 mt-1">
-                Please provide as much detail as possible to help our &apos;brewers&apos; process your request faster.
+                Please provide as much detail as possible to help our
+                &apos;brewers&apos; process your request faster.
               </p>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 sm:p-8 space-y-6">
               <div>
-                <label htmlFor="task-title" className="block text-sm font-semibold text-gray-700 mb-1">
+                <label
+                  htmlFor="task-title"
+                  className="block text-sm font-semibold text-gray-700 mb-1"
+                >
                   Task Title <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -206,7 +273,10 @@ export default function ClientFormPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label htmlFor="task-priority" className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label
+                    htmlFor="task-priority"
+                    className="block text-sm font-semibold text-gray-700 mb-1"
+                  >
                     Priority <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -218,14 +288,21 @@ export default function ClientFormPage() {
                     className="w-full rounded-lg border border-gray-300 focus:ring-amber-500 focus:border-amber-500 text-sm py-2.5 px-3"
                   >
                     <option value="">Select priority level</option>
-                    <option value="low">Low - General inquiry / Long term</option>
-                    <option value="medium">Medium - Standard improvement</option>
+                    <option value="low">
+                      Low - General inquiry / Long term
+                    </option>
+                    <option value="medium">
+                      Medium - Standard improvement
+                    </option>
                     <option value="high">High - Impacting workflow</option>
                     <option value="urgent">Urgent - Critical blocker</option>
                   </select>
                 </div>
                 <div>
-                  <label htmlFor="task-type" className="block text-sm font-semibold text-gray-700 mb-1">
+                  <label
+                    htmlFor="task-type"
+                    className="block text-sm font-semibold text-gray-700 mb-1"
+                  >
                     Task Type <span className="text-red-500">*</span>
                   </label>
                   <select
@@ -238,15 +315,24 @@ export default function ClientFormPage() {
                   >
                     <option value="">Select type</option>
                     <option value="bug">Bug - Something is broken</option>
-                    <option value="feature">Feature Request - New functionality</option>
-                    <option value="improvement">Improvement - Enhance existing feature</option>
-                    <option value="support">Support - General assistance</option>
+                    <option value="feature">
+                      Feature Request - New functionality
+                    </option>
+                    <option value="improvement">
+                      Improvement - Enhance existing feature
+                    </option>
+                    <option value="support">
+                      Support - General assistance
+                    </option>
                   </select>
                 </div>
               </div>
 
               <div>
-                <label htmlFor="task-description" className="block text-sm font-semibold text-gray-700 mb-1">
+                <label
+                  htmlFor="task-description"
+                  className="block text-sm font-semibold text-gray-700 mb-1"
+                >
                   Detailed Description <span className="text-red-500">*</span>
                 </label>
                 <textarea
@@ -259,7 +345,9 @@ export default function ClientFormPage() {
                   placeholder="Describe the problem or requirement. For bugs, include steps to reproduce. For features, describe the desired outcome."
                   className="w-full rounded-lg border border-gray-300 focus:ring-amber-500 focus:border-amber-500 text-sm py-2.5 px-3"
                 />
-                <p className="mt-2 text-xs text-gray-400 italic">Markdown is supported for formatting.</p>
+                <p className="mt-2 text-xs text-gray-400 italic">
+                  Markdown is supported for formatting.
+                </p>
               </div>
 
               <div>
@@ -270,7 +358,9 @@ export default function ClientFormPage() {
                   role="button"
                   tabIndex={0}
                   onClick={() => fileInputRef.current?.click()}
-                  onKeyDown={(e) => e.key === 'Enter' && fileInputRef.current?.click()}
+                  onKeyDown={(e) =>
+                    e.key === "Enter" && fileInputRef.current?.click()
+                  }
                   className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-amber-400 transition-colors cursor-pointer group"
                 >
                   <input
@@ -284,10 +374,16 @@ export default function ClientFormPage() {
                   />
                   <label htmlFor="attachments" className="cursor-pointer">
                     <CloudUpload className="mx-auto h-10 w-10 text-gray-400 group-hover:text-amber-500 transition-colors" />
-                    <p className={`mt-2 text-sm font-medium ${fileCount > 0 ? 'text-amber-600' : 'text-gray-600'}`}>
-                      {fileCount > 0 ? `${fileCount} file(s) selected` : 'Click to upload or drag and drop'}
+                    <p
+                      className={`mt-2 text-sm font-medium ${fileCount > 0 ? "text-amber-600" : "text-gray-600"}`}
+                    >
+                      {fileCount > 0
+                        ? `${fileCount} file(s) selected`
+                        : "Click to upload or drag and drop"}
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">PNG, JPG, PDF, ZIP up to 25MB each</p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      PNG, JPG, PDF, ZIP up to 25MB each
+                    </p>
                   </label>
                 </div>
               </div>
@@ -295,6 +391,7 @@ export default function ClientFormPage() {
               <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-end gap-4">
                 <button
                   type="button"
+                  onClick={handleSaveDraft}
                   className="px-6 py-2.5 text-sm font-semibold text-gray-600 hover:text-gray-900 transition-colors"
                 >
                   Save Draft
@@ -304,7 +401,7 @@ export default function ClientFormPage() {
                   disabled={submitting}
                   className="brand-button w-full sm:w-auto px-8 py-2.5 text-sm font-bold text-white rounded-lg shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-slate-900 disabled:opacity-70 disabled:pointer-events-none"
                 >
-                  {submitting ? 'Submitting...' : 'Submit Task to MaintainAI'}
+                  {submitting ? "Submitting..." : "Submit Task to MaintainAI"}
                 </button>
               </div>
             </form>
@@ -313,7 +410,8 @@ export default function ClientFormPage() {
           <footer className="mt-8 text-center">
             <p className="text-xs text-slate-400 flex items-center justify-center gap-1">
               <Shield className="h-4 w-4 shrink-0" />
-              Securely encrypted submission. Expected response time: &lt; 4 hours.
+              Securely encrypted submission. Expected response time: &lt; 4
+              hours.
             </p>
           </footer>
         </div>
