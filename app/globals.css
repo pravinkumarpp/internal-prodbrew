@@ -62,3 +62,7 @@
     @apply bg-card-border rounded-full;
   }
 }
+
+.card-color{
+  background-color: #000b36;
+}

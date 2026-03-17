@@ -12,6 +12,49 @@ function getStoragePathFromLogoUrl(logoUrl: string): string | null {
   return path && !path.includes("..") ? path : null;
 }
 
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  if (!id) {
+    return NextResponse.json({ error: "Client id required." }, { status: 400 });
+  }
+
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  const { data, error } = await supabaseAdmin
+    .from("clients")
+    .select(
+      "id, name, slug, url, status, last_check_at, last_status, uptime_pct_24h, ssl_expiry_date, ssl_last_checked_at, ssl_issuer, ssl_protocol, ssl_auto_renewal, frontend_script_generated_at, api_webhook_token",
+    )
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return NextResponse.json({ error: "Client not found." }, { status: 404 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },

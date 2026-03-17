@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { usePathname, useParams, useRouter } from 'next/navigation';
-import { createClient } from '@/lib/supabase/client';
+import Image from "next/image";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+import { usePathname, useParams, useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import {
   LayoutDashboard,
   Users,
@@ -31,10 +32,11 @@ import {
   Menu,
   X,
   Lock,
-} from 'lucide-react';
-import { motion } from 'motion/react';
-import { cn } from '@/lib/utils';
-import { SidebarItem } from './SidebarItem';
+} from "lucide-react";
+import { motion } from "motion/react";
+import { cn } from "@/lib/utils";
+import favicon from "../../public/favicon.png";
+import { SidebarItem } from "./SidebarItem";
 
 const mainNav = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
@@ -50,24 +52,13 @@ const getClientNav = (clientId: string) => [
   { icon: Terminal, label: 'Server Logs', href: `/client/${clientId}/logs` },
   { icon: AlertTriangle, label: 'Frontend Errors', href: `/client/${clientId}/frontend-errors` },
   { icon: Globe, label: 'API Monitoring', href: `/client/${clientId}/api` },
-  { icon: Zap, label: 'Performance', href: `/client/${clientId}/performance` },
-  { icon: ShieldCheck, label: 'Security', href: `/client/${clientId}/security` },
-  { icon: Database, label: 'Backups', href: `/client/${clientId}/backups` },
-  { icon: Cpu, label: 'Server Resources', href: `/client/${clientId}/resources` },
   { icon: BrainCircuit, label: 'AI Task Engine', href: `/client/${clientId}/ai-tasks` },
-  { icon: ListTodo, label: 'Tasks', href: `/client/${clientId}/tasks` },
-  { icon: History, label: 'Incident Timeline', href: `/client/${clientId}/timeline` },
-  { icon: BookOpen, label: 'Knowledge Base', href: `/client/${clientId}/kb` },
-  { icon: Clock, label: 'Hours Tracking', href: `/client/${clientId}/hours` },
-  { icon: FileText, label: 'Reports', href: `/client/${clientId}/reports` },
-  { icon: Edit3, label: 'AI Content', href: `/client/${clientId}/content` },
-  { icon: Code2, label: 'AI Programming', href: `/client/${clientId}/programming` },
-  { icon: Trello, label: 'Kanban', href: `/client/${clientId}/kanban` },
 ];
 
 interface AppLayoutProps {
   children: React.ReactNode;
   title: string;
+  headerAction?: React.ReactNode;
 }
 
 function getInitials(fullName: string | null | undefined, email: string | undefined): string {
@@ -80,7 +71,7 @@ function getInitials(fullName: string | null | undefined, email: string | undefi
   return '?';
 }
 
-export function AppLayout({ children, title }: AppLayoutProps) {
+export function AppLayout({ children, title, headerAction }: AppLayoutProps) {
   const pathname = usePathname();
   const params = useParams();
   const router = useRouter();
@@ -123,11 +114,18 @@ export function AppLayout({ children, title }: AppLayoutProps) {
       >
         <div className="p-6 flex items-center justify-between lg:justify-start gap-3">
           <Link href="/" className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-accent rounded-lg flex items-center justify-center shadow-lg shadow-accent/30">
-              <Zap className="text-white" size={20} />
+            <div className="w-8 h-8 rounded-lg overflow-hidden bg-[#000b36] flex items-center justify-center shadow-lg shadow-[#000b36]/30">
+              <Image
+                src={favicon}
+                alt="MaintainAI"
+                className="h-8 w-8 object-contain"
+                priority
+              />
             </div>
             {(!collapsed || mobileMenuOpen) && (
-              <span className="text-xl font-bold text-text-primary tracking-tight">MaintainAI</span>
+              <span className="text-xl font-bold text-text-primary tracking-tight">
+                MaintainAI
+              </span>
             )}
           </Link>
           <button type="button" className="lg:hidden text-text-muted" onClick={() => setMobileMenuOpen(false)} aria-label="Close menu">
@@ -198,6 +196,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
               <Menu size={24} />
             </button>
             <h1 className="text-lg md:text-xl font-semibold text-text-primary truncate">{title}</h1>
+            {headerAction}
           </div>
           <div className="flex items-center gap-2 md:gap-4">
             <div className="relative hidden sm:block">
@@ -209,7 +208,7 @@ export function AppLayout({ children, title }: AppLayoutProps) {
               />
             </div>
             <div
-              className="w-8 h-8 rounded-full bg-accent/10 border border-accent/20 flex items-center justify-center text-accent font-bold text-sm"
+              className="w-8 h-8 rounded-full bg-[#000b36]/10 border border-[#000b36]/20 flex items-center justify-center text-[#000b36] font-bold text-sm"
               title={displayName ?? undefined}
             >
               {initials}

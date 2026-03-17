@@ -73,9 +73,9 @@ export default function PerformancePage() {
                 <Line
                   type="monotone"
                   dataKey="speed"
-                  stroke="#4e67eb"
+                  stroke="#000b36"
                   strokeWidth={3}
-                  dot={{ r: 6, fill: '#4e67eb' }}
+                  dot={{ r: 6, fill: '#000b36' }}
                 />
               </LineChart>
             </ResponsiveContainer>

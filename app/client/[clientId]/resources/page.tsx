@@ -66,7 +66,7 @@ export default function ResourcesPage() {
                 borderRadius: '8px',
               }}
             />
-            <Line type="monotone" dataKey="cpu" stroke="#4e67eb" strokeWidth={2} name="CPU %" />
+            <Line type="monotone" dataKey="cpu" stroke="#000b36" strokeWidth={2} name="CPU %" />
             <Line type="monotone" dataKey="ram" stroke="#10B981" strokeWidth={2} name="RAM %" />
           </LineChart>
         </ResponsiveContainer>

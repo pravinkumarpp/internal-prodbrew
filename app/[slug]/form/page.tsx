@@ -1,9 +1,10 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Zap, Shield, CloudUpload, User } from "lucide-react";
+import { Shield, CloudUpload, User } from "lucide-react";
 import { toast } from "sonner";
 
 const DRAFT_KEY_PREFIX = "maintainai-task-draft-";
@@ -185,14 +186,14 @@ export default function ClientFormPage() {
   return (
     <div className="min-h-screen bg-gray-50 text-slate-900 flex flex-col">
       <style>{`
-        .brand-accent-bg { background-color: #fdf8f3; }
-        .brand-border-active { border-color: #634832; }
+        .brand-accent-bg { background-color: #e5e8ff; }
+        .brand-border-active { border-color: #000b36; }
         .brand-button {
-          background-color: #3b2f2f;
+          background-color: #000b36;
           transition: all 0.2s ease;
         }
         .brand-button:hover {
-          background-color: #1a1414;
+          background-color: #000326;
           transform: translateY(-1px);
         }
       `}</style>
@@ -200,8 +201,15 @@ export default function ClientFormPage() {
       <header className="bg-white border-b border-gray-200 px-6 sm:px-8 py-4 sticky top-0 z-10">
         <div className="max-w-6xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-amber-600 rounded-lg flex items-center justify-center">
-              <Zap className="h-5 w-5 text-white" />
+            <div className="w-8 h-8 rounded-lg  flex items-center justify-center">
+              <Image
+                src="/favicon.png"
+                alt="MaintainAI"
+                width={32}
+                height={32}
+                className="object-contain"
+                priority
+              />
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-900">
               MaintainAI

@@ -1,11 +1,13 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { Zap, Eye, EyeOff } from 'lucide-react';
-import { motion } from 'motion/react';
-import { toast } from 'sonner';
-import { createClient } from '@/lib/supabase/client';
+import Image from "next/image";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
+import { motion } from "motion/react";
+import { toast } from "sonner";
+import { createClient } from "@/lib/supabase/client";
+
 
 export default function LoginPage() {
   const router = useRouter();
@@ -44,8 +46,14 @@ export default function LoginPage() {
         className="w-full max-w-md card"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-accent rounded-2xl flex items-center justify-center mx-auto mb-4">
-            <Zap className="text-white" size={32} />
+          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 overflow-hidden">
+            <Image
+              src="/favicon.png"
+              alt="MaintainAI"
+              width={56}
+              height={56}
+              className="object-contain"
+            />
           </div>
           <h2 className="text-3xl font-bold mb-2">Admin Login</h2>
           <p className="text-text-muted">Enter your credentials to access the platform</p>

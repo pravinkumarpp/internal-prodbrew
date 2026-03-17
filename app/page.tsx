@@ -162,7 +162,7 @@ export default function DashboardPage() {
                       borderRadius: '8px',
                     }}
                   />
-                  <Bar dataKey="uptime" fill="#4e67eb" radius={[4, 4, 0, 0]} />
+                             <Bar dataKey="uptime" fill="#000b36" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             )}
