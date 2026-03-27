@@ -19,6 +19,7 @@ type ApiCheckRow = {
   status: string;
   status_code: number | null;
   response_time_ms: number | null;
+  message: string | null;
   checked_at: string;
 };
 
@@ -65,7 +66,7 @@ export async function GET(
   // Latest check per endpoint (fetch a chunk and reduce client-side)
   const { data: checks, error: checksError } = await supabaseAdmin
     .from("api_checks")
-    .select("api_endpoint_id, status, status_code, response_time_ms, checked_at")
+    .select("api_endpoint_id, status, status_code, response_time_ms, message, checked_at")
     .in("api_endpoint_id", endpointIds)
     .order("checked_at", { ascending: false })
     .limit(500);

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { getFizzyCardCreateUrl } from "@/lib/config";
 
 const supabaseAdmin = createAdminClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -117,12 +118,38 @@ export async function POST(request: Request) {
     );
   }
 
+  // Trigger core automation callback (Fizzy card creation is disabled for now).
+  try {
+    const clientName =
+      (client as { id: string; name?: string }).name ?? slug;
+    const callbackUrl = new URL(
+      "/api/public/tasks/post-create",
+      request.url,
+    ).toString();
+
+    await fetch(callbackUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId: task.id,
+        description,
+        clientId: client.id,
+        clientName,
+        taskType,
+        source: "card_creation_callback_only",
+      }),
+    });
+  } catch (callbackErr) {
+    console.error("Post-create callback failed:", callbackErr);
+  }
+
   // Create Fizzy card if credentials are set
   const fizzyToken = process.env.FIZZY_ACCESS_TOKEN;
   const accountId = process.env.FIZZY_ACCOUNT_ID;
   const boardId = process.env.FIZZY_BOARD_ID;
 
-  if (fizzyToken && accountId && boardId) {
+  // Commented out for now: we are testing only the callback + automation pipeline.
+  if (false && fizzyToken && accountId && boardId) {
     const clientName = (client as { id: string; name?: string }).name ?? "Unknown";
     const cardDescription = [
       description,
@@ -138,7 +165,7 @@ export async function POST(request: Request) {
 
     try {
       const fizzyRes = await fetch(
-        `https://app.fizzy.do/${accountId}/boards/${boardId}/cards`,
+        getFizzyCardCreateUrl(accountId!, boardId!),
         {
           method: "POST",
           headers: {

@@ -37,6 +37,7 @@ export async function OPTIONS() {
  *   status: "up" | "down",
  *   status_code?: 200,
  *   response_time_ms?: 123,
+ *   message?: "Human-readable summary for the dashboard",
  *   error?: "Timeout" | "...",
  *   metadata?: { ... }
  * }
@@ -122,6 +123,10 @@ export async function POST(request: Request) {
   const statusCode = body?.status_code != null ? Number(body.status_code) : null;
   const responseTimeMs = body?.response_time_ms != null ? Number(body.response_time_ms) : null;
   const errorText = body?.error != null ? String(body.error) : null;
+  const messageText =
+    body?.message != null && String(body.message).trim() !== ""
+      ? String(body.message).trim()
+      : null;
   const metadata =
     body?.metadata != null && typeof body.metadata === "object" ? body.metadata : null;
 
@@ -132,6 +137,7 @@ export async function POST(request: Request) {
     status,
     status_code: Number.isFinite(statusCode as number) ? statusCode : null,
     response_time_ms: Number.isFinite(responseTimeMs as number) ? responseTimeMs : null,
+    message: messageText,
     error: errorText,
     metadata,
   });

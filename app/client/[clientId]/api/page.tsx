@@ -28,6 +28,7 @@ type ApiCheck = {
   status: 'up' | 'down';
   status_code: number | null;
   response_time_ms: number | null;
+  message: string | null;
   checked_at: string;
 };
 
@@ -167,6 +168,10 @@ export default function APIMonitoringPage() {
 
       const latency = latest?.response_time_ms != null ? `${latest.response_time_ms}ms` : '—';
       const uptime = uptimePct != null ? `${uptimePct.toFixed(2)}%` : '—';
+      const message =
+        latest?.message != null && String(latest.message).trim() !== ''
+          ? String(latest.message).trim()
+          : null;
 
       return {
         id: ep.id,
@@ -178,6 +183,7 @@ export default function APIMonitoringPage() {
         iconClass,
         latency,
         uptime,
+        message,
       };
     });
   }, [endpoints, latestByEndpoint, uptimePctByEndpoint]);
@@ -221,6 +227,11 @@ export default function APIMonitoringPage() {
                   <p className="text-sm text-text-muted truncate" title={api.url}>
                     {api.url}
                   </p>
+                  {api.message ? (
+                    <p className="text-sm text-text-primary mt-1 line-clamp-2" title={api.message}>
+                      {api.message}
+                    </p>
+                  ) : null}
                 </div>
               </div>
               <div className="flex gap-12 text-right">
