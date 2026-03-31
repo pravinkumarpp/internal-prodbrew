@@ -211,7 +211,7 @@ export default function ClientsListPage() {
                   <th className="px-6 py-4 text-xs font-semibold text-text-muted uppercase tracking-wider">
                     Tasks
                   </th>
-                  <th className="px-6 py-4 text-xs font-semibold text-text-muted uppercase tracking-wider text-right">
+                  <th className="px-6 py-4 text-xs font-semibold text-text-muted uppercase tracking-wider text-center">
                     Action
                   </th>
                 </tr>
@@ -272,17 +272,18 @@ export default function ClientsListPage() {
                           type="button"
                           onClick={() => copyFormUrl(client.slug ?? null)}
                           disabled={!client.slug}
-                          className="p-1.5 rounded-lg text-text-muted hover:text-accent hover:bg-accent/10 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg bg-secondary-bg text-text-primary hover:bg-card-border transition-colors disabled:opacity-50 disabled:pointer-events-none"
                           aria-label={`Copy form URL for ${client.name}`}
                           title="Copy form URL"
                         >
-                          <Copy size={18} />
+                          
+                          Copy URL
                         </button>
                         <button
                           type="button"
                           onClick={() => openDeleteModal(client.id, client.name)}
                           disabled={deletingId === client.id}
-                          className="p-1.5 rounded-lg text-text-muted hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                          className="p-1.5 rounded-lg text-red-500 hover:text-red-500 hover:bg-red-500/10 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                           aria-label={`Delete ${client.name}`}
                         >
                           <Trash2 size={18} />

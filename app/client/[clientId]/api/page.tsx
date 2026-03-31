@@ -1,6 +1,6 @@
 'use client';
 
-import { Copy, KeyRound, Globe } from 'lucide-react';
+import { Copy, KeyRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppLayout } from '@/components/layout';
 import { useParams } from 'next/navigation';
@@ -108,8 +108,8 @@ export default function APIMonitoringPage() {
     const token = client?.api_webhook_token;
     if (!token) return;
     try {
-      await navigator.clipboard.writeText(`Authorization: Bearer ${token}`);
-      toast.success('Authorization header copied.');
+      await navigator.clipboard.writeText(`${token}`);
+      toast.success('Token is copied.');
     } catch {
       toast.error('Could not copy token.');
     }
@@ -131,11 +131,10 @@ export default function APIMonitoringPage() {
         <button
           type="button"
           onClick={copyToken}
-          className="p-2 rounded-lg text-text-muted hover:bg-secondary-bg hover:text-text-primary transition-colors"
-          title="Copy Authorization header"
-          aria-label="Copy Authorization header"
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg bg-secondary-bg text-text-primary hover:bg-card-border transition-colors"
         >
-          <Copy size={18} />
+          <Copy size={16} />
+          Copy Token
         </button>
       )}
     </div>
@@ -159,12 +158,19 @@ export default function APIMonitoringPage() {
             ? 'text-red-500'
             : 'text-text-muted';
 
-      const iconClass =
+      const statusBadgeClass =
         statusLabel === 'Healthy'
-          ? 'bg-emerald-500/10 text-emerald-500'
+          ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
           : statusLabel === 'Critical'
-            ? 'bg-red-500/10 text-red-500'
-            : 'bg-secondary-bg text-text-muted';
+            ? 'bg-red-500/10 text-red-500 border-red-500/20'
+            : 'bg-secondary-bg text-text-muted border-card-border';
+
+      const statusDotClass =
+        statusLabel === 'Healthy'
+          ? 'bg-emerald-500'
+          : statusLabel === 'Critical'
+            ? 'bg-red-500'
+            : 'bg-text-muted';
 
       const latency = latest?.response_time_ms != null ? `${latest.response_time_ms}ms` : '—';
       const uptime = uptimePct != null ? `${uptimePct.toFixed(2)}%` : '—';
@@ -180,7 +186,8 @@ export default function APIMonitoringPage() {
         method: ep.method,
         statusLabel,
         statusClass,
-        iconClass,
+        statusBadgeClass,
+        statusDotClass,
         latency,
         uptime,
         message,
@@ -190,15 +197,15 @@ export default function APIMonitoringPage() {
 
   return (
     <AppLayout title="API Monitoring" headerAction={headerAction}>
-      <div className="grid grid-cols-1 gap-6">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-text-muted">
+      <div className="space-y-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm text-text-muted max-w-3xl">
             Endpoints and statuses are reported by the client developers via webhook. Reports are for internal use.
           </p>
           <button
             type="button"
             onClick={refresh}
-            className="text-sm text-accent hover:underline"
+            className="text-sm font-medium text-accent hover:underline shrink-0 self-start sm:self-auto"
           >
             Refresh
           </button>
@@ -211,45 +218,87 @@ export default function APIMonitoringPage() {
             No endpoints yet. They will appear when the client app sends webhook events.
           </div>
         ) : (
-          cards.map((api) => (
-            <div key={api.id} className="card flex items-center justify-between">
-              <div className="flex items-center gap-4 min-w-0">
-                <div className={cn('p-3 rounded-lg', api.iconClass)}>
-                  <Globe size={24} />
-                </div>
-                <div className="min-w-0">
-                  <h3 className="text-lg font-bold truncate">
-                    {api.name}{' '}
-                    <span className="text-xs font-semibold text-text-muted align-middle">
-                      {api.method}
-                    </span>
-                  </h3>
-                  <p className="text-sm text-text-muted truncate" title={api.url}>
-                    {api.url}
-                  </p>
-                  {api.message ? (
-                    <p className="text-sm text-text-primary mt-1 line-clamp-2" title={api.message}>
-                      {api.message}
-                    </p>
-                  ) : null}
-                </div>
-              </div>
-              <div className="flex gap-12 text-right">
-                <div>
-                  <p className="text-xs text-text-muted uppercase mb-1">Status</p>
-                  <p className={cn('font-bold', api.statusClass)}>{api.statusLabel}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-muted uppercase mb-1">Latency</p>
-                  <p className="font-bold">{api.latency}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-text-muted uppercase mb-1">Uptime</p>
-                  <p className="font-bold">{api.uptime}</p>
-                </div>
-              </div>
+          <div className="card p-0 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[880px] border-collapse text-left">
+                <thead>
+                  <tr className="border-b border-card-border bg-secondary-bg">
+                    <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted">
+                      Endpoint
+                    </th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted w-[88px]">
+                      Method
+                    </th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted min-w-[220px]">
+                      URL
+                    </th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted w-[120px]">
+                      Status
+                    </th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted w-[100px]">
+                      Latency
+                    </th>
+                    <th className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted w-[100px]">
+                      Uptime
+                    </th>
+                    <th className="px-6 py-3 text-xs font-semibold uppercase tracking-wide text-text-muted min-w-[200px]">
+                      Message
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono text-sm divide-y divide-card-border">
+                  {cards.map((api) => (
+                    <tr
+                      key={api.id}
+                      className="hover:bg-secondary-bg/40 transition-colors"
+                    >
+                      <td className="px-6 py-4 align-top">
+                        <span className="font-sans font-semibold text-text-primary">{api.name}</span>
+                      </td>
+                      <td className="px-4 py-4 align-top">
+                        <span className="inline-flex rounded-md border border-card-border bg-primary-bg px-2 py-0.5 text-xs font-semibold text-text-primary">
+                          {api.method}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 align-top max-w-[320px]">
+                        <span className="block truncate font-sans text-xs text-text-muted" title={api.url}>
+                          {api.url}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 align-top whitespace-nowrap">
+                        <span
+                          className={cn(
+                            'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-bold font-sans',
+                            api.statusBadgeClass,
+                          )}
+                        >
+                          <span className={cn('mr-1.5 inline-block h-1.5 w-1.5 rounded-full', api.statusDotClass)} />
+                          {api.statusLabel}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4 align-top whitespace-nowrap text-text-primary">{api.latency}</td>
+                      <td className="px-4 py-4 align-top whitespace-nowrap text-text-primary">{api.uptime}</td>
+                      <td className="px-6 py-4 align-top">
+                        {api.message ? (
+                          <span
+                            className={cn(
+                              'block font-sans text-xs line-clamp-2 font-medium',
+                              api.statusClass,
+                            )}
+                            title={api.message}
+                          >
+                            {api.message}
+                          </span>
+                        ) : (
+                          <span className="font-sans text-xs text-text-muted">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))
+          </div>
         )}
       </div>
     </AppLayout>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppLayout } from '@/components/layout';
 import { Copy, FileCode } from 'lucide-react';
 import { toast } from 'sonner';
@@ -37,6 +37,16 @@ function getScriptTag(slug: string): string {
   return `<script src="${scriptUrl}" data-client-id="${slug}"></script>`;
 }
 
+type LevelFilter = 'all' | 'error' | 'warning';
+type TimeFilter = 'all' | '1h' | '24h' | '7d';
+
+function normalizeLevel(level: string | null): 'error' | 'warning' | 'info' {
+  const v = String(level ?? '').toLowerCase();
+  if (v === 'warning') return 'warning';
+  if (v === 'info') return 'info';
+  return 'error';
+}
+
 export default function FrontendErrorsPage() {
   const params = useParams();
   const clientId = params?.clientId as string | undefined;
@@ -45,6 +55,8 @@ export default function FrontendErrorsPage() {
   const [loading, setLoading] = useState(true);
   const [eventsLoading, setEventsLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [levelFilter, setLevelFilter] = useState<LevelFilter>('all');
+  const [timeFilter, setTimeFilter] = useState<TimeFilter>('all');
 
   useEffect(() => {
     if (!clientId) {
@@ -128,21 +140,69 @@ export default function FrontendErrorsPage() {
           type="button"
           onClick={handleCopy}
           disabled={!scriptTag}
-          className="p-2 rounded-lg text-text-muted hover:bg-secondary-bg hover:text-text-primary transition-colors"
-          title="Copy script tag"
-          aria-label="Copy script tag"
+          className="inline-flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-lg bg-secondary-bg text-text-primary hover:bg-card-border disabled:opacity-50 disabled:pointer-events-none"
         >
-          <Copy size={18} />
+          <Copy size={16} />
+          Copy Script
         </button>
       )}
     </div>
   );
 
   const isEmpty = !eventsLoading && logEvents.length === 0;
+  const filteredEvents = useMemo(() => {
+    const now = Date.now();
+    const timeWindowMs =
+      timeFilter === '1h'
+        ? 60 * 60 * 1000
+        : timeFilter === '24h'
+          ? 24 * 60 * 60 * 1000
+          : timeFilter === '7d'
+            ? 7 * 24 * 60 * 60 * 1000
+            : null;
+
+    return logEvents.filter((evt) => {
+      const normalizedLevel = normalizeLevel(evt.level);
+      const matchesLevel = levelFilter === 'all' || normalizedLevel === levelFilter;
+      if (!matchesLevel) return false;
+
+      if (timeWindowMs == null) return true;
+      const createdAtMs = new Date(evt.created_at).getTime();
+      if (Number.isNaN(createdAtMs)) return false;
+      return now - createdAtMs <= timeWindowMs;
+    });
+  }, [logEvents, levelFilter, timeFilter]);
+  const isFilteredEmpty = !eventsLoading && filteredEvents.length === 0;
 
   return (
     <AppLayout title="Frontend JavaScript Errors" headerAction={headerAction}>
       <div className="card p-0 overflow-hidden">
+        <div className="px-6 py-4 border-b border-card-border flex items-center justify-between gap-3">
+          <div className="text-xs text-text-muted">
+            Filter events by severity and time range
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={levelFilter}
+              onChange={(e) => setLevelFilter(e.target.value as LevelFilter)}
+              className="px-2 py-1.5 rounded-md border border-card-border bg-primary-bg text-sm text-text-primary"
+            >
+              <option value="all">All Levels</option>
+              <option value="error">Error</option>
+              <option value="warning">Warning</option>
+            </select>
+            <select
+              value={timeFilter}
+              onChange={(e) => setTimeFilter(e.target.value as TimeFilter)}
+              className="px-2 py-1.5 rounded-md border border-card-border bg-primary-bg text-sm text-text-primary"
+            >
+              <option value="all">All Time</option>
+              <option value="1h">Last 1 Hour</option>
+              <option value="24h">Last 24 Hours</option>
+              <option value="7d">Last 7 Days</option>
+            </select>
+          </div>
+        </div>
         <div className="bg-secondary-bg px-6 py-4 border-b border-card-border flex gap-4">
           <span className="text-xs font-semibold text-text-muted uppercase w-32">Timestamp</span>
           <span className="text-xs font-semibold text-text-muted uppercase flex-1">Error Message</span>
@@ -155,21 +215,34 @@ export default function FrontendErrorsPage() {
           <div className="px-6 py-12 text-center text-text-muted text-sm">
             No frontend errors recorded yet. Add the script to your site to start receiving console errors, 404s, and slow responses.
           </div>
+        ) : isFilteredEmpty ? (
+          <div className="px-6 py-12 text-center text-text-muted text-sm">
+            No events found for the selected filters.
+          </div>
         ) : (
           <div className="divide-y divide-card-border font-mono text-sm">
-            {logEvents.map((evt) => (
-              <div
-                key={evt.id}
-                className="px-6 py-4 flex gap-4 hover:bg-secondary-bg/30 transition-colors"
-              >
-                <span className="text-text-muted w-32 shrink-0">{formatTime(evt.created_at)}</span>
-                <span className="flex-1 text-red-400 min-w-0 break-words">{evt.message}</span>
-                <span className="text-text-muted w-48 truncate shrink-0" title={evt.source ?? undefined}>
-                  {evt.source ?? '—'}
-                </span>
-                <span className="text-text-muted w-32 shrink-0 capitalize">{evt.level ?? 'error'}</span>
-              </div>
-            ))}
+            {filteredEvents.map((evt) => {
+              const level = normalizeLevel(evt.level);
+              const isWarning = level === 'warning';
+              const messageClass = isWarning ? 'text-yellow-600' : 'text-red-500';
+              const levelClass = isWarning ? 'text-yellow-600 px-2 py-0.5 rounded-md inline-block' : 'text-red-500';
+
+              return (
+                <div
+                  key={evt.id}
+                  className="px-6 py-4 flex gap-4 hover:bg-secondary-bg/30 transition-colors"
+                >
+                  <span className="text-text-muted w-32 shrink-0">{formatTime(evt.created_at)}</span>
+                  <span className={`flex-1 min-w-0 break-words ${messageClass}`}>{evt.message}</span>
+                  <span className="text-text-muted w-48 truncate shrink-0" title={evt.source ?? undefined}>
+                    {evt.source ?? '—'}
+                  </span>
+                  <span className="w-32 shrink-0">
+                    <span className={`capitalize font-semibold ${levelClass}`}>{level}</span>
+                  </span>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
