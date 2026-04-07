@@ -148,8 +148,7 @@ export async function POST(request: Request) {
   const accountId = process.env.FIZZY_ACCOUNT_ID;
   const boardId = process.env.FIZZY_BOARD_ID;
 
-  // Commented out for now: we are testing only the callback + automation pipeline.
-  if (false && fizzyToken && accountId && boardId) {
+  if (fizzyToken && accountId && boardId) {
     const clientName = (client as { id: string; name?: string }).name ?? "Unknown";
     const cardDescription = [
       description,
