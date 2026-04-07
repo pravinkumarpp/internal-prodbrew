@@ -46,12 +46,13 @@ export default function LoginPage() {
         className="w-full max-w-md card"
       >
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-4 overflow-hidden">
+          <div className="flex items-center justify-center mx-auto mb-6">
             <Image
-              src="/favicon.png"
-              alt="MaintainAI"
-              width={56}
-              height={56}
+              src="/prodbrew-logo.png"
+              alt="ProdBrew"
+              width={180}
+              height={48}
+              priority
               className="object-contain"
             />
           </div>
