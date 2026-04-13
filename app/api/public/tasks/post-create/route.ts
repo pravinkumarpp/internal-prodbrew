@@ -55,7 +55,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("[PostCreate] Fizzy card success callback", {
+    console.log("[PostCreate] Task submit callback", {
       taskId,
       clientId,
       clientName,

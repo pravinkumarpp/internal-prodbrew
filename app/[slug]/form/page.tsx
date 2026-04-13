@@ -21,6 +21,7 @@ type Draft = {
   priority: string;
   taskType: string;
   description: string;
+  basecampTarget: string;
 };
 
 export default function ClientFormPage() {
@@ -34,6 +35,7 @@ export default function ClientFormPage() {
   const [priority, setPriority] = useState("");
   const [taskType, setTaskType] = useState("");
   const [description, setDescription] = useState("");
+  const [basecampTarget, setBasecampTarget] = useState("");
   const [fileCount, setFileCount] = useState(0);
   const [submitting, setSubmitting] = useState(false);
 
@@ -75,6 +77,7 @@ export default function ClientFormPage() {
         if (d.priority != null) setPriority(String(d.priority));
         if (d.taskType != null) setTaskType(String(d.taskType));
         if (d.description != null) setDescription(String(d.description));
+        if (d.basecampTarget != null) setBasecampTarget(String(d.basecampTarget));
         toast.info("Draft restored");
       }
     } catch {
@@ -118,6 +121,7 @@ export default function ClientFormPage() {
           priority,
           taskType,
           description,
+          basecampTarget,
         } satisfies Draft),
       );
       toast.success("Draft saved. You can return later to submit.");
@@ -128,7 +132,13 @@ export default function ClientFormPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!taskTitle.trim() || !priority || !taskType || !description.trim()) {
+    if (
+      !taskTitle.trim() ||
+      !priority ||
+      !taskType ||
+      !description.trim() ||
+      !basecampTarget
+    ) {
       toast.error("Please fill in all required fields.");
       return;
     }
@@ -141,6 +151,7 @@ export default function ClientFormPage() {
       formData.append("priority", priority);
       formData.append("task_type", taskType);
       formData.append("description", description.trim());
+      formData.append("basecamp_target", basecampTarget);
 
       if (fileInputRef.current?.files?.length) {
         Array.from(fileInputRef.current.files).forEach((file) => {
@@ -174,6 +185,7 @@ export default function ClientFormPage() {
       setPriority("");
       setTaskType("");
       setDescription("");
+      setBasecampTarget("");
       setFileCount(0);
       if (fileInputRef.current) fileInputRef.current.value = "";
     } catch {
@@ -356,6 +368,28 @@ export default function ClientFormPage() {
                 <p className="mt-2 text-xs text-gray-400 italic">
                   Markdown is supported for formatting.
                 </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="basecamp-target"
+                  className="block text-sm font-semibold text-gray-700 mb-1"
+                >
+                  Create in Basecamp as <span className="text-red-500">*</span>
+                </label>
+                <select
+                  id="basecamp-target"
+                  name="basecamp-target"
+                  required
+                  value={basecampTarget}
+                  onChange={(e) => setBasecampTarget(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 focus:ring-amber-500 focus:border-amber-500 text-sm py-2.5 px-3"
+                >
+                  <option value="">Select destination</option>
+                  <option value="todo">To-do</option>
+                  <option value="card">Card</option>
+                  <option value="message_board">Message Board</option>
+                </select>
               </div>
 
               <div>

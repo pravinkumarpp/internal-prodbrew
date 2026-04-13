@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { recordMonitoringIncident } from "@/lib/monitoring-incidents";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -154,6 +155,25 @@ export async function POST(request: Request) {
         { error: insertError.message },
         { status: 500, headers: CORS_HEADERS },
       );
+    }
+
+    if (level === "warning" || level === "error") {
+      try {
+        await recordMonitoringIncident({
+          sourceType: type as "server_log" | "ui_log" | "api_log",
+          severity: level,
+          clientId,
+          message,
+          source: source || null,
+          metadata:
+            metadata && typeof metadata === "object"
+              ? (metadata as Record<string, unknown>)
+              : null,
+        });
+      } catch (writeErr) {
+        // Do not fail webhook ingestion if incident file write fails.
+        console.error("[MonitoringIncident] write failed:", writeErr);
+      }
     }
 
     return NextResponse.json(

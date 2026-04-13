@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { recordMonitoringIncident } from "@/lib/monitoring-incidents";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -144,6 +145,28 @@ export async function POST(request: Request) {
 
   if (checkInsertError) {
     return NextResponse.json({ error: checkInsertError.message }, { status: 500, headers: CORS_HEADERS });
+  }
+
+  if (status === "down") {
+    try {
+      await recordMonitoringIncident({
+        sourceType: "api_monitoring",
+        severity: "error",
+        clientId,
+        message:
+          messageText ||
+          errorText ||
+          `API monitor down: ${safeMethod} ${url}`,
+        source: url,
+        metadata:
+          metadata && typeof metadata === "object"
+            ? (metadata as Record<string, unknown>)
+            : null,
+      });
+    } catch (writeErr) {
+      // Keep ingestion successful even if local incident file write fails.
+      console.error("[MonitoringIncident] write failed:", writeErr);
+    }
   }
 
   return NextResponse.json({ ok: true }, { status: 200, headers: CORS_HEADERS });
