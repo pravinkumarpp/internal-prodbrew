@@ -28,6 +28,12 @@ type SavedAttachment = {
   name: string;
 };
 
+type BasecampRefreshResponse = {
+  access_token?: string;
+  refresh_token?: string;
+  expires_in?: number;
+};
+
 function getBasecampAuthHeaders(accessToken: string) {
   return {
     Authorization: `Bearer ${accessToken}`,
@@ -40,6 +46,52 @@ function getBasecampJsonHeaders(accessToken: string) {
   return {
     ...getBasecampAuthHeaders(accessToken),
     "Content-Type": "application/json",
+  };
+}
+
+async function refreshBasecampAccessToken(refreshToken: string) {
+  const clientId = process.env.BASECAMP_CLIENT_ID;
+  const clientSecret = process.env.BASECAMP_CLIENT_SECRET;
+  const tokenUrl =
+    process.env.BASECAMP_TOKEN_URL ?? "https://launchpad.37signals.com/authorization/token";
+
+  if (!clientId || !clientSecret) {
+    throw new Error(
+      "Missing Basecamp OAuth credentials. Required: BASECAMP_CLIENT_ID and BASECAMP_CLIENT_SECRET",
+    );
+  }
+
+  const body = new URLSearchParams({
+    type: "refresh",
+    refresh_token: refreshToken,
+    client_id: clientId,
+    client_secret: clientSecret,
+  });
+
+  const response = await fetch(tokenUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      Accept: "application/json",
+    },
+    body: body.toString(),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text().catch(() => "");
+    throw new Error(
+      `Basecamp token refresh failed (${response.status}): ${errorBody || "Unknown error"}`,
+    );
+  }
+
+  const json = (await response.json()) as BasecampRefreshResponse;
+  if (!json.access_token) {
+    throw new Error("Basecamp token refresh succeeded but no access_token was returned.");
+  }
+
+  return {
+    accessToken: json.access_token,
+    refreshToken: json.refresh_token || refreshToken,
   };
 }
 
@@ -80,6 +132,7 @@ async function createBasecampEntity(params: {
   accountId: string;
   projectId: string;
   accessToken: string;
+  refreshToken?: string;
   title: string;
   description: string;
   priority: string;
@@ -92,6 +145,7 @@ async function createBasecampEntity(params: {
     accountId,
     projectId,
     accessToken,
+    refreshToken,
     title,
     description,
     priority,
@@ -100,10 +154,35 @@ async function createBasecampEntity(params: {
     target,
     attachments,
   } = params;
-  const authHeaders = getBasecampAuthHeaders(accessToken);
-  const jsonHeaders = getBasecampJsonHeaders(accessToken);
+  let activeAccessToken = accessToken;
+  let activeRefreshToken = refreshToken;
+
+  const callBasecamp = async (url: string, init?: RequestInit) => {
+    const performRequest = async (token: string) => {
+      const headers = new Headers(init?.headers);
+      headers.set("Authorization", `Bearer ${token}`);
+      headers.set(
+        "User-Agent",
+        process.env.BASECAMP_USER_AGENT ?? "MaintainAI (support@maintainai.local)",
+      );
+      return fetch(url, { ...init, headers });
+    };
+
+    let response = await performRequest(activeAccessToken);
+    if (response.status !== 401 || !activeRefreshToken) {
+      return response;
+    }
+
+    const refreshed = await refreshBasecampAccessToken(activeRefreshToken);
+    activeAccessToken = refreshed.accessToken;
+    activeRefreshToken = refreshed.refreshToken;
+    console.info("Basecamp access token refreshed after 401.");
+    response = await performRequest(activeAccessToken);
+    return response;
+  };
+
   const projectUrl = `https://3.basecampapi.com/${accountId}/projects/${projectId}.json`;
-  const projectRes = await fetch(projectUrl, { headers: authHeaders });
+  const projectRes = await callBasecamp(projectUrl);
 
   if (!projectRes.ok) {
     const body = await projectRes.text().catch(() => "");
@@ -131,7 +210,7 @@ async function createBasecampEntity(params: {
   const uploadedAttachmentSgids = await createBasecampAttachmentSgids({
     accountId,
     vaultId: vaultId ?? 0,
-    accessToken,
+    callBasecamp,
     attachments,
   });
   const contentWithAttachments = appendAttachmentEmbeds(
@@ -151,9 +230,9 @@ async function createBasecampEntity(params: {
       throw new Error("No To-do set found in project dock.");
     }
     const createTodoListUrl = `https://3.basecampapi.com/${accountId}/buckets/${projectId}/todosets/${todoSetId}/todolists.json`;
-    const todoRes = await fetch(createTodoListUrl, {
+    const todoRes = await callBasecamp(createTodoListUrl, {
       method: "POST",
-      headers: jsonHeaders,
+      headers: getBasecampJsonHeaders(activeAccessToken),
       body: JSON.stringify({
         name: title,
         description: contentWithAttachments,
@@ -177,7 +256,7 @@ async function createBasecampEntity(params: {
       throw new Error("No Card Table tool found in project dock.");
     }
 
-    const cardTableRes = await fetch(cardTableTool.url, { headers: authHeaders });
+    const cardTableRes = await callBasecamp(cardTableTool.url);
     if (!cardTableRes.ok) {
       const body = await cardTableRes.text().catch(() => "");
       throw new Error(`Basecamp Card Table read failed (${cardTableRes.status}): ${body}`);
@@ -194,9 +273,9 @@ async function createBasecampEntity(params: {
     let resolvedListId = cardLists[0]?.id;
 
     if (!resolvedListId && cardTableTool.id) {
-      const listsRes = await fetch(
+      const listsRes = await callBasecamp(
         `https://3.basecampapi.com/${accountId}/card_tables/${cardTableTool.id}/lists.json`,
-        { headers: authHeaders },
+        undefined,
       );
       if (listsRes.ok) {
         const listsData = (await listsRes.json()) as Array<{ id?: number }>;
@@ -208,9 +287,9 @@ async function createBasecampEntity(params: {
     }
 
     const createCardUrl = `https://3.basecampapi.com/${accountId}/card_tables/lists/${resolvedListId}/cards.json`;
-    const cardRes = await fetch(createCardUrl, {
+    const cardRes = await callBasecamp(createCardUrl, {
       method: "POST",
-      headers: jsonHeaders,
+      headers: getBasecampJsonHeaders(activeAccessToken),
       body: JSON.stringify({
         title,
         content: contentWithAttachments,
@@ -234,9 +313,9 @@ async function createBasecampEntity(params: {
     throw new Error("No Message Board tool found in project dock.");
   }
   const createMessageUrl = `https://3.basecampapi.com/${accountId}/buckets/${projectId}/message_boards/${boardId}/messages.json`;
-  const messageRes = await fetch(createMessageUrl, {
+  const messageRes = await callBasecamp(createMessageUrl, {
     method: "POST",
-    headers: jsonHeaders,
+    headers: getBasecampJsonHeaders(activeAccessToken),
     body: JSON.stringify({
       subject: title,
       content: contentWithAttachments,
@@ -252,13 +331,12 @@ async function createBasecampEntity(params: {
 async function createBasecampAttachmentSgids(params: {
   accountId: string;
   vaultId: number;
-  accessToken: string;
+  callBasecamp: (url: string, init?: RequestInit) => Promise<Response>;
   attachments: SavedAttachment[];
 }): Promise<string[]> {
-  const { accountId, vaultId, accessToken, attachments } = params;
+  const { accountId, vaultId, callBasecamp, attachments } = params;
   if (attachments.length === 0) return [];
 
-  const authHeaders = getBasecampAuthHeaders(accessToken);
   const createAttachmentBaseUrl = `https://3.basecampapi.com/${accountId}/attachments.json`;
   const sgids: string[] = [];
 
@@ -276,10 +354,9 @@ async function createBasecampAttachmentSgids(params: {
       sourceRes.headers.get("content-type") || attachment.type || "application/octet-stream";
     const createAttachmentUrl = `${createAttachmentBaseUrl}?name=${encodeURIComponent(attachment.name)}`;
 
-    const attachmentRes = await fetch(createAttachmentUrl, {
+    const attachmentRes = await callBasecamp(createAttachmentUrl, {
       method: "POST",
       headers: {
-        ...authHeaders,
         "Content-Type": contentType,
         "Content-Length": String(fileArrayBuffer.byteLength),
       },
@@ -431,6 +508,7 @@ export async function POST(request: Request) {
   }
 
   const accessToken = process.env.BASECAMP_ACCESS_TOKEN;
+  const refreshToken = process.env.BASECAMP_REFRESH_TOKEN;
   const accountId = process.env.BASECAMP_ACCOUNT_ID;
   const projectId = process.env.BASECAMP_PROJECT_ID;
   if (!accessToken || !accountId || !projectId) {
@@ -449,6 +527,7 @@ export async function POST(request: Request) {
       accountId,
       projectId,
       accessToken,
+      refreshToken,
       title,
       description,
       priority,
