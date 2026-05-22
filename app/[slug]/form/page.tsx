@@ -393,17 +393,12 @@ export default function ClientFormPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">
+                <span className="block text-sm font-semibold text-gray-700 mb-2">
                   Attachments (Screenshots, Logs, Specs)
-                </label>
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => fileInputRef.current?.click()}
-                  onKeyDown={(e) =>
-                    e.key === "Enter" && fileInputRef.current?.click()
-                  }
-                  className="border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-amber-400 transition-colors cursor-pointer group"
+                </span>
+                <label
+                  htmlFor="attachments"
+                  className="block border-2 border-dashed border-gray-300 rounded-xl p-8 text-center hover:border-amber-400 transition-colors cursor-pointer group"
                 >
                   <input
                     ref={fileInputRef}
@@ -414,20 +409,18 @@ export default function ClientFormPage() {
                     className="hidden"
                     onChange={(e) => setFileCount(e.target.files?.length ?? 0)}
                   />
-                  <label htmlFor="attachments" className="cursor-pointer">
-                    <CloudUpload className="mx-auto h-10 w-10 text-gray-400 group-hover:text-amber-500 transition-colors" />
-                    <p
-                      className={`mt-2 text-sm font-medium ${fileCount > 0 ? "text-amber-600" : "text-gray-600"}`}
-                    >
-                      {fileCount > 0
-                        ? `${fileCount} file(s) selected`
-                        : "Click to upload or drag and drop"}
-                    </p>
-                    <p className="text-xs text-gray-400 mt-1">
-                      PNG, JPG, PDF, ZIP up to 25MB each
-                    </p>
-                  </label>
-                </div>
+                  <CloudUpload className="mx-auto h-10 w-10 text-gray-400 group-hover:text-amber-500 transition-colors" />
+                  <p
+                    className={`mt-2 text-sm font-medium ${fileCount > 0 ? "text-amber-600" : "text-gray-600"}`}
+                  >
+                    {fileCount > 0
+                      ? `${fileCount} file(s) selected`
+                      : "Click to upload or drag and drop"}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    PNG, JPG, PDF, ZIP up to 25MB each
+                  </p>
+                </label>
               </div>
 
               <div className="pt-6 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-end gap-4">
