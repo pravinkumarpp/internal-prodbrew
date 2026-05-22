@@ -97,10 +97,13 @@ export async function POST(request: Request) {
         status: automationRes.status,
         body: text,
       });
-      return NextResponse.json(
-        { error: "Automation call failed", status: automationRes.status },
-        { status: 502 },
-      );
+      // Non-blocking: task + Basecamp already succeeded; automation is best-effort.
+      return NextResponse.json({
+        ok: true,
+        forwarded: false,
+        automationError: "Automation call failed",
+        automationStatus: automationRes.status,
+      });
     }
 
     return NextResponse.json({ ok: true, forwarded: true });

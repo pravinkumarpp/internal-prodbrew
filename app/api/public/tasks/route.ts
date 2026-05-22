@@ -176,7 +176,9 @@ async function createBasecampEntity(params: {
     const refreshed = await refreshBasecampAccessToken(activeRefreshToken);
     activeAccessToken = refreshed.accessToken;
     activeRefreshToken = refreshed.refreshToken;
-    console.info("Basecamp access token refreshed after 401.");
+    console.info(
+      "Basecamp: stored access token expired (401); refresh succeeded and request was retried.",
+    );
     response = await performRequest(activeAccessToken);
     return response;
   };
@@ -486,27 +488,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // Trigger core automation callback.
-  try {
-    const clientName = (client as { id: string; name?: string }).name ?? slug;
-    const callbackUrl = new URL("/api/public/tasks/post-create", request.url).toString();
-
-    await fetch(callbackUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        taskId: task.id,
-        description,
-        clientId: client.id,
-        clientName,
-        taskType,
-        source: "card_creation_callback_only",
-      }),
-    });
-  } catch (callbackErr) {
-    console.error("Post-create callback failed:", callbackErr);
-  }
-
   const accessToken = process.env.BASECAMP_ACCESS_TOKEN;
   const refreshToken = process.env.BASECAMP_REFRESH_TOKEN;
   const accountId = process.env.BASECAMP_ACCOUNT_ID;
@@ -545,6 +526,35 @@ export async function POST(request: Request) {
       },
       { status: 502 },
     );
+  }
+
+  // Automation runs only after DB save and Basecamp creation succeed.
+  try {
+    const clientName = (client as { id: string; name?: string }).name ?? slug;
+    const callbackUrl = new URL("/api/public/tasks/post-create", request.url).toString();
+
+    const automationRes = await fetch(callbackUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        taskId: task.id,
+        description,
+        clientId: client.id,
+        clientName,
+        taskType,
+        source: "card_creation_callback_only",
+      }),
+    });
+
+    if (!automationRes.ok) {
+      const body = await automationRes.text().catch(() => "");
+      console.error("Post-create automation failed:", {
+        status: automationRes.status,
+        body,
+      });
+    }
+  } catch (callbackErr) {
+    console.error("Post-create callback failed:", callbackErr);
   }
 
   return NextResponse.json({ success: true, id: task.id }, { status: 201 });
