@@ -98,7 +98,7 @@ export default function DashboardPage() {
               <Globe size={24} />
             </div>
           </div>
-          <p className="text-text-muted text-sm mb-1">Total Clients</p>
+          <p className="text-text-muted text-sm mb-1">Total Projects</p>
           <h3 className="text-3xl font-bold">{totalClients}</h3>
         </div>
         <div className="card">

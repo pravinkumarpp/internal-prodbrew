@@ -40,8 +40,8 @@ import { SidebarItem } from "./SidebarItem";
 
 const mainNav = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
-  { icon: Users, label: 'Clients', href: '/clients' },
-  { icon: PlusCircle, label: 'Add Client', href: '/add-client' },
+  { icon: Users, label: 'Projects', href: '/projects' },
+  { icon: PlusCircle, label: 'Add Project', href: '/add-project' },
   { icon: Users, label: 'Team', href: '/team' },
   { icon: Settings, label: 'Settings', href: '/settings' },
 ];

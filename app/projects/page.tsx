@@ -106,7 +106,7 @@ export default function ClientsListPage() {
   const hasClients = clients.length > 0;
 
   return (
-    <AppLayout title="Clients List">
+    <AppLayout title="Projects List">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div className="flex flex-wrap gap-4">
           <label className="flex items-center gap-2 bg-secondary-bg rounded-lg border border-card-border min-w-[160px] cursor-pointer hover:border-accent/50 transition-colors">
@@ -147,7 +147,7 @@ export default function ClientsListPage() {
           className="btn-primary w-full sm:w-auto"
         >
           <PlusCircle size={20} />
-          Add New Client
+          Add New Project
         </button>
       </div>
 

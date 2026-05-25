@@ -74,10 +74,10 @@ export default function AddClientPage() {
   }
 
   return (
-    <AppLayout title="Add New Client">
+    <AppLayout title="Add New Project">
       <div className="max-w-2xl mx-auto">
         <div className="card">
-          <h3 className="text-2xl font-bold mb-6">Client Onboarding</h3>
+          <h3 className="text-2xl font-bold mb-6">Project Onboarding</h3>
           <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="grid grid-cols-2 gap-6">
               <div className="col-span-2">
