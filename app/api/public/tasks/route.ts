@@ -139,6 +139,7 @@ async function createBasecampEntity(params: {
   taskType: string;
   clientName: string;
   target: BasecampTarget;
+  assigneeIds?: number[];
   attachments: SavedAttachment[];
 }) {
   const {
@@ -152,6 +153,7 @@ async function createBasecampEntity(params: {
     taskType,
     clientName,
     target,
+    assigneeIds = [],
     attachments,
   } = params;
   let activeAccessToken = accessToken;
@@ -232,13 +234,17 @@ async function createBasecampEntity(params: {
       throw new Error("No To-do set found in project dock.");
     }
     const createTodoListUrl = `https://3.basecampapi.com/${accountId}/buckets/${projectId}/todosets/${todoSetId}/todolists.json`;
+    const todoBody: Record<string, unknown> = {
+      name: title,
+      description: contentWithAttachments,
+    };
+    if (assigneeIds.length > 0) {
+      todoBody.assignee_ids = assigneeIds;
+    }
     const todoRes = await callBasecamp(createTodoListUrl, {
       method: "POST",
       headers: getBasecampJsonHeaders(activeAccessToken),
-      body: JSON.stringify({
-        name: title,
-        description: contentWithAttachments,
-      }),
+      body: JSON.stringify(todoBody),
     });
     if (!todoRes.ok) {
       const body = await todoRes.text().catch(() => "");
@@ -289,13 +295,17 @@ async function createBasecampEntity(params: {
     }
 
     const createCardUrl = `https://3.basecampapi.com/${accountId}/card_tables/lists/${resolvedListId}/cards.json`;
+    const cardBody: Record<string, unknown> = {
+      title,
+      content: contentWithAttachments,
+    };
+    if (assigneeIds.length > 0) {
+      cardBody.assignee_ids = assigneeIds;
+    }
     const cardRes = await callBasecamp(createCardUrl, {
       method: "POST",
       headers: getBasecampJsonHeaders(activeAccessToken),
-      body: JSON.stringify({
-        title,
-        content: contentWithAttachments,
-      }),
+      body: JSON.stringify(cardBody),
     });
     if (!cardRes.ok) {
       const body = await cardRes.text().catch(() => "");
@@ -397,6 +407,8 @@ export async function POST(request: Request) {
   const taskType = String(formData.get("task_type") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const basecampTarget = String(formData.get("basecamp_target") ?? "").trim() as BasecampTarget;
+  const assigneeId = String(formData.get("assignee_id") ?? "").trim();
+  const assigneeName = String(formData.get("assignee_name") ?? "").trim();
 
   const validTargets: BasecampTarget[] = ["todo", "card", "message_board"];
   if (
@@ -415,7 +427,7 @@ export async function POST(request: Request) {
 
   const { data: client, error: clientError } = await supabaseAdmin
     .from("clients")
-    .select("id, name")
+    .select("id, name, basecamp_project_id")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -477,6 +489,8 @@ export async function POST(request: Request) {
       status: "Backlog",
       source: "public_form",
       attachments: attachments.length ? attachments : null,
+      basecamp_assignee_id: assigneeId ? Number(assigneeId) : null,
+      basecamp_assignee_name: assigneeName || null,
     })
     .select("id")
     .single();
@@ -491,7 +505,11 @@ export async function POST(request: Request) {
   const accessToken = process.env.BASECAMP_ACCESS_TOKEN;
   const refreshToken = process.env.BASECAMP_REFRESH_TOKEN;
   const accountId = process.env.BASECAMP_ACCOUNT_ID;
-  const projectId = process.env.BASECAMP_PROJECT_ID;
+  const sourceForm = String(formData.get("source_form") ?? "").trim();
+  const clientBasecampProjectId = (client as { basecamp_project_id?: number }).basecamp_project_id;
+  const projectId = sourceForm === "bug_form" && clientBasecampProjectId
+    ? String(clientBasecampProjectId)
+    : process.env.BASECAMP_PROJECT_ID;
   if (!accessToken || !accountId || !projectId) {
     return NextResponse.json(
       {
@@ -515,6 +533,7 @@ export async function POST(request: Request) {
       taskType,
       clientName,
       target: basecampTarget,
+      assigneeIds: assigneeId ? [Number(assigneeId)] : [],
       attachments,
     });
   } catch (err) {
@@ -528,7 +547,7 @@ export async function POST(request: Request) {
     );
   }
 
-  // Automation runs only after DB save and Basecamp creation succeed.
+  /* Automation engine - disabled for now
   try {
     const clientName = (client as { id: string; name?: string }).name ?? slug;
     const callbackUrl = new URL("/api/public/tasks/post-create", request.url).toString();
@@ -556,6 +575,7 @@ export async function POST(request: Request) {
   } catch (callbackErr) {
     console.error("Post-create callback failed:", callbackErr);
   }
+  */
 
   return NextResponse.json({ success: true, id: task.id }, { status: 201 });
 }

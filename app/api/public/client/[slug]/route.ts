@@ -18,7 +18,7 @@ export async function GET(
 
   const { data, error } = await supabaseAdmin
     .from("clients")
-    .select("id, name, slug, logo_url")
+    .select("id, name, slug, logo_url, basecamp_project_id, bug_form_generated")
     .eq("slug", slug.trim())
     .maybeSingle();
 

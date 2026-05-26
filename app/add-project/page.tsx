@@ -1,181 +1,245 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { AppLayout } from '@/components/layout';
-import { createClient } from '@/lib/supabase/client';
+import { Check, Loader2 } from 'lucide-react';
 
-const LOGO_BUCKET = 'ai-maintenance-client-logos';
+type BasecampProject = {
+  id: number;
+  name: string;
+  description: string;
+  app_url: string;
+};
 
-export default function AddClientPage() {
+type ExistingClient = {
+  id: string;
+  basecamp_project_id: number | null;
+};
+
+export default function AddProjectPage() {
   const router = useRouter();
-  const [name, setName] = useState('');
-  const [url, setUrl] = useState('');
-  const [platform, setPlatform] = useState<'WordPress' | 'Shopify' | 'Next.js'>('WordPress');
-  const [hostingProvider, setHostingProvider] = useState('');
-  const [gitRepoUrl, setGitRepoUrl] = useState('');
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoUrl, setLogoUrl] = useState('');
+  const [projects, setProjects] = useState<BasecampProject[]>([]);
+  const [existingIds, setExistingIds] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!name.trim() || !url.trim()) {
-      toast.error('Website name and URL are required.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      let finalLogoUrl = logoUrl.trim() || null;
-      if (logoFile) {
-        const supabase = createClient();
-        const path = `logos/${Date.now()}-${logoFile.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-        const { error: uploadError } = await supabase.storage
-          .from(LOGO_BUCKET)
-          .upload(path, logoFile, { upsert: false });
-        if (uploadError) {
-          toast.error(uploadError.message || 'Logo upload failed.');
-          setSubmitting(false);
+  useEffect(() => {
+    async function load() {
+      try {
+        const [projectsRes, clientsRes] = await Promise.all([
+          fetch('/api/basecamp/projects'),
+          fetch('/api/clients', { credentials: 'include' }),
+        ]);
+
+        if (!projectsRes.ok) {
+          const body = await projectsRes.json().catch(() => ({}));
+          setError((body as { error?: string }).error || 'Failed to load Basecamp projects.');
           return;
         }
-        const { data: urlData } = supabase.storage.from(LOGO_BUCKET).getPublicUrl(path);
-        finalLogoUrl = urlData.publicUrl;
+
+        const basecampProjects: BasecampProject[] = await projectsRes.json();
+        setProjects(basecampProjects);
+
+        if (clientsRes.ok) {
+          const clients: ExistingClient[] = await clientsRes.json();
+          const ids = new Set<number>();
+          for (const c of clients) {
+            if (c.basecamp_project_id != null) ids.add(c.basecamp_project_id);
+          }
+          setExistingIds(ids);
+        }
+      } catch {
+        setError('Failed to fetch projects. Please try again.');
+      } finally {
+        setLoading(false);
       }
-      const res = await fetch('/api/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          url: url.trim(),
-          platform,
-          hosting_provider: hostingProvider.trim() || null,
-          git_repo_url: gitRepoUrl.trim() || null,
-          logo_url: finalLogoUrl,
-        }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { error?: string; slug?: string };
-      if (!res.ok) {
-        toast.error(data.error || 'Failed to add client.');
-        setSubmitting(false);
-        return;
-      }
-      const formUrl = data.slug
-        ? `${typeof window !== 'undefined' ? window.location.origin : ''}/${data.slug}/form`
-        : '';
-      toast.success(formUrl ? `Client added. Form URL: ${formUrl}` : 'Client added successfully.');
-      router.push('/clients');
-      router.refresh();
-    } catch {
-      toast.error('Something went wrong.');
-    } finally {
-      setSubmitting(false);
     }
+    load();
+  }, []);
+
+  const availableProjects = projects.filter((p) => !existingIds.has(p.id));
+
+  function toggleSelect(id: number) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    if (selected.size === availableProjects.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(availableProjects.map((p) => p.id)));
+    }
+  }
+
+  async function handleAdd() {
+    if (selected.size === 0) {
+      toast.error('Please select at least one project.');
+      return;
+    }
+
+    setSubmitting(true);
+    let successCount = 0;
+
+    for (const projectId of selected) {
+      const project = projects.find((p) => p.id === projectId);
+      if (!project) continue;
+
+      try {
+        const res = await fetch('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            name: project.name,
+            basecamp_project_id: project.id,
+          }),
+        });
+
+        if (res.ok) {
+          successCount++;
+        } else {
+          const body = await res.json().catch(() => ({}));
+          toast.error(`Failed to add "${project.name}": ${(body as { error?: string }).error || 'Unknown error'}`);
+        }
+      } catch {
+        toast.error(`Failed to add "${project.name}".`);
+      }
+    }
+
+    if (successCount > 0) {
+      toast.success(`${successCount} project${successCount > 1 ? 's' : ''} added successfully.`);
+      router.push('/projects');
+      router.refresh();
+    }
+
+    setSubmitting(false);
   }
 
   return (
     <AppLayout title="Add New Project">
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-3xl mx-auto">
         <div className="card">
-          <h3 className="text-2xl font-bold mb-6">Project Onboarding</h3>
-          <form className="space-y-6" onSubmit={handleSubmit}>
-            <div className="grid grid-cols-2 gap-6">
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-2">Website Name</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="w-full bg-background border border-card-border rounded-lg px-4 py-2 focus:outline-none focus:border-accent"
-                  placeholder="e.g. My Awesome Store"
-                  required
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-2">Website URL</label>
-                <input
-                  type="url"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  className="w-full bg-background border border-card-border rounded-lg px-4 py-2 focus:outline-none focus:border-accent"
-                  placeholder="https://example.com"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Platform</label>
-                <select
-                  value={platform}
-                  onChange={(e) => setPlatform(e.target.value as 'WordPress' | 'Shopify' | 'Next.js')}
-                  className="w-full bg-background border border-card-border rounded-lg px-4 py-2 focus:outline-none focus:border-accent"
-                >
-                  <option>WordPress</option>
-                  <option>Shopify</option>
-                  <option>Next.js</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Hosting Provider</label>
-                <input
-                  type="text"
-                  value={hostingProvider}
-                  onChange={(e) => setHostingProvider(e.target.value)}
-                  className="w-full bg-background border border-card-border rounded-lg px-4 py-2 focus:outline-none focus:border-accent"
-                  placeholder="e.g. AWS, Vercel"
-                />
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-2">Logo (image file)</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  className="w-full bg-background border border-card-border rounded-lg px-4 py-2 focus:outline-none focus:border-accent file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:bg-accent file:text-white file:text-sm file:font-medium"
-                  onChange={(e) => setLogoFile(e.target.files?.[0] ?? null)}
-                />
-                {logoFile && (
-                  <p className="text-sm text-text-muted mt-1">{logoFile.name}</p>
-                )}
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-2">Logo URL</label>
-                <input
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  className="w-full bg-background border border-card-border rounded-lg px-4 py-2 focus:outline-none focus:border-accent"
-                  placeholder="https://example.com/logo.png"
-                />
-                <p className="text-xs text-text-muted mt-1">Used only if no file is selected above.</p>
-              </div>
-              <div className="col-span-2">
-                <label className="block text-sm font-medium mb-2">Git Repository URL</label>
-                <input
-                  type="text"
-                  value={gitRepoUrl}
-                  onChange={(e) => setGitRepoUrl(e.target.value)}
-                  className="w-full bg-background border border-card-border rounded-lg px-4 py-2 focus:outline-none focus:border-accent"
-                  placeholder="https://github.com/user/repo"
-                />
-              </div>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-2xl font-bold">Import from Basecamp</h3>
+              <p className="text-text-muted text-sm mt-1">
+                Select projects from your Basecamp account to add them.
+              </p>
             </div>
-            <div className="pt-4 flex gap-4">
-              <button
-                type="submit"
-                className="flex-1 btn-primary disabled:opacity-50 disabled:pointer-events-none"
-                disabled={submitting}
-              >
-                {submitting ? 'Adding…' : 'Start Monitoring'}
-              </button>
+          </div>
+
+          {loading ? (
+            <div className="flex items-center justify-center py-16">
+              <Loader2 className="h-6 w-6 animate-spin text-text-muted" />
+              <span className="ml-3 text-text-muted">Loading Basecamp projects...</span>
+            </div>
+          ) : error ? (
+            <div className="text-center py-16">
+              <p className="text-red-500 mb-4">{error}</p>
               <button
                 type="button"
-                onClick={() => router.push('/clients')}
-                className="flex-1 btn-secondary"
-                disabled={submitting}
+                onClick={() => window.location.reload()}
+                className="text-sm text-accent hover:underline"
               >
-                Cancel
+                Retry
               </button>
             </div>
-          </form>
+          ) : availableProjects.length === 0 ? (
+            <div className="text-center py-16">
+              <p className="text-text-muted mb-2">No new projects to import.</p>
+              <p className="text-sm text-text-muted">
+                All Basecamp projects have already been added.
+              </p>
+              <button
+                type="button"
+                onClick={() => router.push('/projects')}
+                className="mt-4 text-sm text-accent hover:underline"
+              >
+                Back to Projects
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center justify-between mb-4 pb-4 border-b border-card-border">
+                <button
+                  type="button"
+                  onClick={selectAll}
+                  className="text-sm font-medium text-accent hover:underline"
+                >
+                  {selected.size === availableProjects.length ? 'Deselect All' : 'Select All'}
+                </button>
+                <span className="text-sm text-text-muted">
+                  {selected.size} of {availableProjects.length} selected
+                </span>
+              </div>
+
+              <div className="space-y-2 max-h-[400px] overflow-y-auto custom-scrollbar">
+                {availableProjects.map((project) => {
+                  const isSelected = selected.has(project.id);
+                  return (
+                    <button
+                      key={project.id}
+                      type="button"
+                      onClick={() => toggleSelect(project.id)}
+                      className={`w-full flex items-center gap-4 px-4 py-3 rounded-xl border transition-all text-left ${
+                        isSelected
+                          ? 'border-accent bg-accent/5'
+                          : 'border-card-border hover:border-accent/50 hover:bg-secondary-bg/50'
+                      }`}
+                    >
+                      <div
+                        className={`w-5 h-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-colors ${
+                          isSelected
+                            ? 'border-accent bg-accent text-white'
+                            : 'border-gray-300'
+                        }`}
+                      >
+                        {isSelected && <Check size={14} />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-text-primary truncate">{project.name}</p>
+                        {project.description && (
+                          <p className="text-sm text-text-muted truncate mt-0.5">
+                            {project.description}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="pt-6 mt-6 border-t border-card-border flex gap-4">
+                <button
+                  type="button"
+                  onClick={handleAdd}
+                  disabled={submitting || selected.size === 0}
+                  className="flex-1 btn-primary disabled:opacity-50 disabled:pointer-events-none"
+                >
+                  {submitting
+                    ? 'Adding...'
+                    : `Add ${selected.size} Project${selected.size !== 1 ? 's' : ''}`}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => router.push('/projects')}
+                  className="flex-1 btn-secondary"
+                  disabled={submitting}
+                >
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </AppLayout>

@@ -95,14 +95,18 @@ Clients/sites to monitor. Matches `Client` in `lib/types.ts`. Add-client form: w
 | `git_repo_url`    | `text`        | YES      | Git repository URL                   |
 | `logo_url`        | `text`        | YES      | Client logo image URL                |
 | `slug`            | `text`        | YES      | Unique URL slug (e.g. `acme-corp`) for public form URL `/{slug}/form` |
+| `basecamp_project_id` | `bigint`  | YES      | Basecamp project numeric ID (unique, from Basecamp API) |
+| `bug_form_generated` | `boolean`  | NO       | Whether bug form URL has been generated (default false) |
 | `created_at`      | `timestamptz` | NO       | Default `now()`                      |
 | `updated_at`      | `timestamptz` | NO       | Default `now()`                      |
 
-**Add slug column (if table already exists):** Run in Supabase SQL Editor:
+**Add slug and basecamp_project_id columns (if table already exists):** Run in Supabase SQL Editor:
 
 ```sql
 ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS slug text UNIQUE;
 CREATE UNIQUE INDEX IF NOT EXISTS clients_slug_key ON public.clients(slug) WHERE slug IS NOT NULL;
+
+ALTER TABLE public.clients ADD COLUMN IF NOT EXISTS basecamp_project_id bigint UNIQUE;
 ```
 
 New clients get a slug generated from the name when created via the app. Backfill existing rows if needed.
@@ -113,12 +117,14 @@ Derived (computed or from other tables) for UI: `uptime`, `ssl_expiry`, `open_ta
 CREATE TABLE public.clients (
   id               uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   name             text NOT NULL,
-  url              text NOT NULL,
-  platform         platform NOT NULL,
+  url              text,
+  platform         text,
   status           client_status NOT NULL DEFAULT 'Healthy',
   hosting_provider text,
   git_repo_url     text,
   logo_url         text,
+  slug             text UNIQUE,
+  basecamp_project_id bigint UNIQUE,
   created_at       timestamptz NOT NULL DEFAULT now(),
   updated_at       timestamptz NOT NULL DEFAULT now()
 );
@@ -140,6 +146,8 @@ Tasks per client. Used by the public Task Intake form (`/{slug}/form`) and by th
 | `description` | `text`        | YES      | Detailed description          |
 | `status`      | `text`        | NO       | Backlog, In Progress, Review, Completed (default Backlog) |
 | `assigned_to` | `uuid`        | YES      | FK → `public.users(id)`        |
+| `basecamp_assignee_id` | `bigint` | YES | Basecamp person ID (from Basecamp API) |
+| `basecamp_assignee_name` | `text` | YES | Basecamp person display name   |
 | `source`      | `text`        | YES      | e.g. `public_form`, `manual`   |
 | `created_at`  | `timestamptz` | NO       | Default `now()`                |
 | `updated_at`  | `timestamptz` | NO       | Default `now()`                |
@@ -156,6 +164,8 @@ CREATE TABLE IF NOT EXISTS public.tasks (
   description text,
   status      text NOT NULL DEFAULT 'Backlog',
   assigned_to uuid REFERENCES public.users(id) ON DELETE SET NULL,
+  basecamp_assignee_id bigint,
+  basecamp_assignee_name text,
   source      text,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()

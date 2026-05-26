@@ -42,8 +42,6 @@ const mainNav = [
   { icon: LayoutDashboard, label: 'Dashboard', href: '/' },
   { icon: Users, label: 'Projects', href: '/projects' },
   { icon: PlusCircle, label: 'Add Project', href: '/add-project' },
-  { icon: Users, label: 'Team', href: '/team' },
-  { icon: Settings, label: 'Settings', href: '/settings' },
 ];
 
 const getClientNav = (clientId: string) => [
@@ -204,7 +202,7 @@ export function AppLayout({ children, title, headerAction }: AppLayoutProps) {
               <input
                 type="text"
                 placeholder="Search..."
-                className="bg-background border border-card-border rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-accent w-32 md:w-64"
+                className="bg-background border border-card-border rounded-lg pl-10 pr-4 py-2 text-sm focus:outline-none focus:border-accent w-48 md:w-80 lg:w-96"
               />
             </div>
             <div

@@ -55,6 +55,56 @@ export async function GET(
   return NextResponse.json(data);
 }
 
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+  if (!id) {
+    return NextResponse.json({ error: "Client id required." }, { status: 400 });
+  }
+
+  const body = await request.json();
+
+  const supabaseAdmin = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+
+  const updateData: Record<string, unknown> = {};
+  if (typeof body.bug_form_generated === "boolean") {
+    updateData.bug_form_generated = body.bug_form_generated;
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return NextResponse.json({ error: "No valid fields to update." }, { status: 400 });
+  }
+
+  const { data, error } = await supabaseAdmin
+    .from("clients")
+    .update(updateData)
+    .eq("id", id)
+    .select("id, slug, bug_form_generated")
+    .single();
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  return NextResponse.json(data);
+}
+
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string }> },

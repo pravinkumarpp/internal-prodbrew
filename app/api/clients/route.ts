@@ -35,7 +35,7 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin
     .from("clients")
-    .select("id, name, url, platform, status, logo_url, slug, last_check_at, last_status, uptime_pct_24h, ssl_expiry_date, ssl_last_checked_at")
+    .select("id, name, url, platform, status, logo_url, slug, basecamp_project_id, bug_form_generated, last_check_at, last_status, uptime_pct_24h, ssl_expiry_date, ssl_last_checked_at")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -85,11 +85,12 @@ export async function POST(request: Request) {
     hosting_provider,
     git_repo_url,
     logo_url,
+    basecamp_project_id,
   } = body;
 
-  if (!name || typeof name !== "string" || !url || typeof url !== "string" || !platform) {
+  if (!name || typeof name !== "string") {
     return NextResponse.json(
-      { error: "Name, URL, and platform are required." },
+      { error: "Name is required." },
       { status: 400 },
     );
   }
@@ -109,18 +110,21 @@ export async function POST(request: Request) {
   let slug = baseSlug;
   for (let n = 2; used.has(slug); n++) slug = `${baseSlug}-${n}`;
 
+  const insertData: Record<string, unknown> = {
+    name: name.trim(),
+    url: url ? String(url).trim() : "",
+    platform: platform ? String(platform) : "Next.js",
+    status: body.status ?? "Healthy",
+    slug,
+  };
+  if (hosting_provider) insertData.hosting_provider = String(hosting_provider).trim();
+  if (git_repo_url) insertData.git_repo_url = String(git_repo_url).trim();
+  if (logo_url) insertData.logo_url = String(logo_url).trim();
+  if (basecamp_project_id) insertData.basecamp_project_id = Number(basecamp_project_id);
+
   const { data, error } = await supabaseAdmin
     .from("clients")
-    .insert({
-      name: name.trim(),
-      url: url.trim(),
-      platform: String(platform),
-      status: body.status ?? "Healthy",
-      hosting_provider: hosting_provider?.trim() || null,
-      git_repo_url: git_repo_url?.trim() || null,
-      logo_url: logo_url?.trim() || null,
-      slug,
-    })
+    .insert(insertData)
     .select("id, slug")
     .single();
 
