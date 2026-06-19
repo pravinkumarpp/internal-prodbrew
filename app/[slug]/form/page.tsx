@@ -4,8 +4,9 @@ import Image from "next/image";
 import { useEffect, useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { Shield, CloudUpload, User, X } from "lucide-react";
+import { Shield, CloudUpload, User, X, LayoutGrid, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const DRAFT_KEY_PREFIX = "maintainai-task-draft-";
 
@@ -159,13 +160,7 @@ export default function ClientFormPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (
-      !taskTitle.trim() ||
-      !priority ||
-      !taskType ||
-      !description.trim() ||
-      !basecampTarget
-    ) {
+    if (!taskTitle.trim() || !description.trim() || !basecampTarget) {
       toast.error("Please fill in all required fields.");
       return;
     }
@@ -175,8 +170,8 @@ export default function ClientFormPage() {
       const formData = new FormData();
       formData.append("slug", slug);
       formData.append("title", taskTitle.trim());
-      formData.append("priority", priority);
-      formData.append("task_type", taskType);
+      formData.append("priority", priority || "medium");
+      formData.append("task_type", taskType || "improvement");
       formData.append("description", description.trim());
       formData.append("basecamp_target", basecampTarget);
       if (assigneeId) {
@@ -257,7 +252,7 @@ export default function ClientFormPage() {
               />
             </div>
             <span className="text-xl font-bold tracking-tight text-slate-900">
-              MaintainAI
+              Prodbrew-projects
             </span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
@@ -324,60 +319,64 @@ export default function ClientFormPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label
-                    htmlFor="task-priority"
-                    className="block text-sm font-semibold text-gray-700 mb-1"
-                  >
-                    Priority <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="task-priority"
-                    name="task-priority"
-                    required
-                    value={priority}
-                    onChange={(e) => setPriority(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 focus:ring-amber-500 focus:border-amber-500 text-sm py-2.5 px-3"
-                  >
-                    <option value="">Select priority level</option>
-                    <option value="low">
-                      Low - General inquiry / Long term
-                    </option>
-                    <option value="medium">
-                      Medium - Standard improvement
-                    </option>
-                    <option value="high">High - Impacting workflow</option>
-                    <option value="urgent">Urgent - Critical blocker</option>
-                  </select>
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-sm font-semibold text-gray-700">
+                    Create in Basecamp as <span className="text-red-500">*</span>
+                  </span>
+                  {basecampTarget && (
+                    <button
+                      type="button"
+                      onClick={() => setBasecampTarget("")}
+                      className="text-xs font-medium text-white bg-[#000b36] hover:bg-[#000326] px-2 py-0.5 rounded-md border border-[#000b36] transition-colors"
+                    >
+                      Reset
+                    </button>
+                  )}
                 </div>
-                <div>
-                  <label
-                    htmlFor="task-type"
-                    className="block text-sm font-semibold text-gray-700 mb-1"
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setBasecampTarget("card")}
+                    className={cn(
+                      "flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all",
+                      basecampTarget === "card"
+                        ? "border-[#000b36] bg-[#e5e8ff] ring-1 ring-[#000b36]"
+                        : "border-gray-200 bg-white hover:border-amber-400 hover:bg-gray-50",
+                    )}
                   >
-                    Task Type <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    id="task-type"
-                    name="task-type"
-                    required
-                    value={taskType}
-                    onChange={(e) => setTaskType(e.target.value)}
-                    className="w-full rounded-lg border border-gray-300 focus:ring-amber-500 focus:border-amber-500 text-sm py-2.5 px-3"
+                    <LayoutGrid
+                      className={cn(
+                        "h-6 w-6",
+                        basecampTarget === "card" ? "text-[#000b36]" : "text-gray-400",
+                      )}
+                    />
+                    <span className="font-semibold text-gray-900">Card</span>
+                    <span className="text-xs text-gray-500">
+                      Add as a card on the project board
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBasecampTarget("message_board")}
+                    className={cn(
+                      "flex flex-col items-start gap-2 rounded-xl border-2 p-4 text-left transition-all",
+                      basecampTarget === "message_board"
+                        ? "border-[#000b36] bg-[#e5e8ff] ring-1 ring-[#000b36]"
+                        : "border-gray-200 bg-white hover:border-amber-400 hover:bg-gray-50",
+                    )}
                   >
-                    <option value="">Select type</option>
-                    <option value="bug">Bug - Something is broken</option>
-                    <option value="feature">
-                      Feature Request - New functionality
-                    </option>
-                    <option value="improvement">
-                      Improvement - Enhance existing feature
-                    </option>
-                    <option value="support">
-                      Support - General assistance
-                    </option>
-                  </select>
+                    <MessageSquare
+                      className={cn(
+                        "h-6 w-6",
+                        basecampTarget === "message_board" ? "text-[#000b36]" : "text-gray-400",
+                      )}
+                    />
+                    <span className="font-semibold text-gray-900">Message Board</span>
+                    <span className="text-xs text-gray-500">
+                      Post as a message on the board
+                    </span>
+                  </button>
                 </div>
               </div>
 
@@ -401,27 +400,6 @@ export default function ClientFormPage() {
                 <p className="mt-2 text-xs text-gray-400 italic">
                   Markdown is supported for formatting.
                 </p>
-              </div>
-
-              <div>
-                <label
-                  htmlFor="basecamp-target"
-                  className="block text-sm font-semibold text-gray-700 mb-1"
-                >
-                  Create in Basecamp as <span className="text-red-500">*</span>
-                </label>
-                <select
-                  id="basecamp-target"
-                  name="basecamp-target"
-                  required
-                  value={basecampTarget}
-                  onChange={(e) => setBasecampTarget(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 focus:ring-amber-500 focus:border-amber-500 text-sm py-2.5 px-3"
-                >
-                  <option value="">Select destination</option>
-                  <option value="card">Card</option>
-                  <option value="message_board">Message Board</option>
-                </select>
               </div>
 
               <div>
