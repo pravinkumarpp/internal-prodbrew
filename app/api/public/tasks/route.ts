@@ -18,6 +18,7 @@ type BasecampDockItem = {
   id?: number;
   enabled?: boolean;
   url?: string;
+  title?: string;
 };
 
 type SavedAttachment = {
@@ -98,10 +99,8 @@ async function refreshBasecampAccessToken(refreshToken: string) {
 function buildBasecampContent(params: {
   description: string;
   priority: string;
-  taskType: string;
-  clientName: string;
 }) {
-  const { description, priority, taskType, clientName } = params;
+  const { description, priority } = params;
   const escapeHtml = (value: string) =>
     value
       .replace(/&/g, "&amp;")
@@ -112,12 +111,7 @@ function buildBasecampContent(params: {
   const toRichDiv = (value: string) =>
     `<div>${escapeHtml(value).replace(/\n/g, "<br>")}</div>`;
 
-  return [
-    toRichDiv(description),
-    toRichDiv(`Priority: ${priority}`),
-    toRichDiv(`Task Type: ${taskType}`),
-    toRichDiv(`Client: ${clientName}`),
-  ].join("");
+  return [toRichDiv(description), toRichDiv(`Priority: ${priority}`)].join("");
 }
 
 function appendAttachmentEmbeds(content: string, sgids: string[]) {
@@ -136,11 +130,10 @@ async function createBasecampEntity(params: {
   title: string;
   description: string;
   priority: string;
-  taskType: string;
-  clientName: string;
   target: BasecampTarget;
   assigneeIds?: number[];
   attachments: SavedAttachment[];
+  preferBugCardTable?: boolean;
 }) {
   const {
     accountId,
@@ -150,11 +143,10 @@ async function createBasecampEntity(params: {
     title,
     description,
     priority,
-    taskType,
-    clientName,
     target,
     assigneeIds = [],
     attachments,
+    preferBugCardTable = false,
   } = params;
   let activeAccessToken = accessToken;
   let activeRefreshToken = refreshToken;
@@ -208,8 +200,6 @@ async function createBasecampEntity(params: {
   const content = buildBasecampContent({
     description,
     priority,
-    taskType,
-    clientName,
   });
   const uploadedAttachmentSgids = await createBasecampAttachmentSgids({
     accountId,
@@ -254,12 +244,20 @@ async function createBasecampEntity(params: {
   }
 
   if (target === "card") {
-    const cardTableTool = dock.find(
+    const cardTableTools = dock.filter(
       (item) =>
         item?.enabled !== false &&
         typeof item?.url === "string" &&
         item.url.includes("/card_tables/"),
     );
+
+    const bugCardTable = cardTableTools.find((item) =>
+      (item.title ?? "").toLowerCase().includes("bug"),
+    );
+    const cardTableTool = preferBugCardTable
+      ? bugCardTable ?? cardTableTools[0]
+      : cardTableTools[0];
+
     if (!cardTableTool?.url) {
       throw new Error("No Card Table tool found in project dock.");
     }
@@ -521,7 +519,6 @@ export async function POST(request: Request) {
   }
 
   try {
-    const clientName = (client as { name?: string }).name ?? "Unknown";
     await createBasecampEntity({
       accountId,
       projectId,
@@ -530,11 +527,10 @@ export async function POST(request: Request) {
       title,
       description,
       priority,
-      taskType,
-      clientName,
       target: basecampTarget,
       assigneeIds: assigneeId ? [Number(assigneeId)] : [],
       attachments,
+      preferBugCardTable: sourceForm === "bug_form",
     });
   } catch (err) {
     console.error("Basecamp creation failed:", err);
